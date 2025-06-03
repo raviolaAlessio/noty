@@ -7,9 +7,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+var SuccessStyle = lipgloss.NewStyle().Foreground(SuccessFg)
 var ErrorStyle = lipgloss.NewStyle().Foreground(ErrorFg).Bold(true)
 var InfoStyle = lipgloss.NewStyle().Foreground(Fg).Faint(true)
-var SuccessStyle = lipgloss.NewStyle().Foreground(SuccessFg)
 
 func PrintlnfError(format string, a ...any) {
 	fmt.Fprint(os.Stderr, ErrorStyle.Render(fmt.Sprintf(format, a...)) + "\n")

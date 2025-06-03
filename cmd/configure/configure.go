@@ -22,7 +22,7 @@ func release(tp *tea.Program) {
 }
 
 var ConfigCmd = &cobra.Command{
-	Use: "configure",
+	Use:   "configure",
 	Short: "",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
@@ -74,24 +74,35 @@ var ConfigCmd = &cobra.Command{
 		viper.Set("projects_database_id", projectsDatabaseID)
 
 		// Fetch all users
-		ui.PrintlnfInfo("Loading users...")
-		fetcherUsers := client.NewUserFetcher(ctx, true)
-		users, err := fetcherUsers.All()
+		_, err = ui.Spin(
+			"Loading users",
+			func() error {
+				fetcherUsers := client.NewUserFetcher(ctx, true)
+				users, err := fetcherUsers.All()
+				if err != nil {
+					return err
+				}
+				viper.Set("users", users)
+				return nil
+			},
+		)
 		if err != nil {
 			return err
 		}
-		viper.Set("users", users)
-		ui.PrintlnfInfo("Users loaded")
 
 		// Fetch all projects
-		ui.PrintlnfInfo("Loading projects...")
-		fetcherProjects := client.NewProjectFetcher(ctx, config.ProjectsDatabaseID())
-		projects, err := fetcherProjects.All()
-		if err != nil {
-			return err
-		}
-		viper.Set("projects", projects)
-		ui.PrintlnfInfo("Projects loaded")
+		_, err = ui.Spin(
+			"Loading projects",
+			func() error {
+				fetcherProjects := client.NewProjectFetcher(ctx, config.ProjectsDatabaseID())
+				projects, err := fetcherProjects.All()
+				if err != nil {
+					return err
+				}
+				viper.Set("projects", projects)
+				return nil
+			},
+		)
 
 		filename, err := config.Save()
 		if err != nil {

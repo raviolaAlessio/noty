@@ -14,7 +14,7 @@ type (
 
 var inputTitleStyle = lipgloss.NewStyle().Foreground(Primary).Bold(true)
 
-type model struct {
+type textinputModel struct {
 	textInput textinput.Model
 	err       error
 	output    *string
@@ -28,14 +28,14 @@ func NewTextInput(
 	output *string,
 	placeholder string,
 	exit *bool,
-) model {
+) textinputModel {
 	ti := textinput.New()
 	ti.Focus()
 	ti.Placeholder = placeholder
 	ti.CharLimit = 156
 	ti.Width = 80
 
-	return model{
+	return textinputModel{
 		textInput: ti,
 		err:       nil,
 		output:    output,
@@ -51,7 +51,7 @@ func NewValidated(
 	placeholder string,
 	exit *bool,
 	validator func(string) error,
-) model {
+) textinputModel {
 	ti := textinput.New()
 	ti.Focus()
 	ti.Placeholder = placeholder
@@ -59,7 +59,7 @@ func NewValidated(
 	ti.Width = 20
 	ti.Validate = validator
 
-	return model{
+	return textinputModel{
 		textInput: ti,
 		err:       nil,
 		output:    output,
@@ -68,11 +68,11 @@ func NewValidated(
 	}
 }
 
-func (m model) Init() tea.Cmd {
+func (m textinputModel) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m textinputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -102,13 +102,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m model) View() string {
+func (m textinputModel) View() string {
 	return fmt.Sprintf("\n%s\n%s\n\n",
 		m.header,
 		m.textInput.View(),
 	)
 }
 
-func (m model) Err() string {
+func (m textinputModel) Err() string {
 	return m.err.Error()
 }

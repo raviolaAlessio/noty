@@ -2,6 +2,7 @@ package notion
 
 import (
 	"context"
+	"time"
 
 	"github.com/jomei/notionapi"
 )
@@ -15,28 +16,61 @@ const (
 )
 
 type TaskFilter struct {
-	Project  *string
+	Projects []string
+	User     *string
 	Assignee *string
+	Reviewer *string
 	Statuses []string
 }
 
 func (self *TaskFilter) ToFilter() notionapi.Filter {
 	filter := notionapi.AndCompoundFilter{}
 
-	if self.Project != nil {
-		filter = append(filter, notionapi.PropertyFilter{
-			Property: "Project",
-			RichText: &notionapi.TextFilterCondition{
-				Equals: *self.Project,
-			},
-		})
+	if len(self.Projects) > 0 {
+		projectsFilter := notionapi.OrCompoundFilter{}
+		for _, project := range self.Projects {
+			projectsFilter = append(projectsFilter, notionapi.PropertyFilter{
+				Property: "Project",
+				Relation: &notionapi.RelationFilterCondition{
+					Contains: project,
+				},
+			})
+		}
+		filter = append(filter, projectsFilter)
 	}
 
-	if self.Assignee != nil {
+	if self.User != nil {
+		userFilter := notionapi.OrCompoundFilter{
+			notionapi.PropertyFilter{
+				Property: "Assignee",
+				People: &notionapi.PeopleFilterCondition{
+					Contains: *self.User,
+				},
+			},
+			notionapi.PropertyFilter{
+				Property: "Reviewer",
+				People: &notionapi.PeopleFilterCondition{
+					Contains: *self.User,
+				},
+			},
+		}
+		filter = append(filter, userFilter)
+	}
+
+	if self.Assignee != nil && self.User == nil {
 		filter = append(filter, notionapi.PropertyFilter{
 			Property: "Assignee",
 			People: &notionapi.PeopleFilterCondition{
 				Contains: *self.Assignee,
+			},
+		})
+	}
+
+	if self.Reviewer != nil && self.User == nil {
+		filter = append(filter, notionapi.PropertyFilter{
+			Property: "Reviewer",
+			People: &notionapi.PeopleFilterCondition{
+				Contains: *self.Reviewer,
 			},
 		})
 	}
@@ -65,6 +99,7 @@ type Task struct {
 	Status    string
 	Priority  string
 	ProjectID []string
+	Created   time.Time
 }
 
 func parseTaskPage(p notionapi.Page) Task {
@@ -76,6 +111,7 @@ func parseTaskPage(p notionapi.Page) Task {
 		Reviewer:  ParsePeople(p.Properties["Reviewer"]),
 		Priority:  ParseSelect(p.Properties["Priority"]),
 		ProjectID: ParseRelation(p.Properties["Project"]),
+		Created:   p.CreatedTime,
 	}
 }
 

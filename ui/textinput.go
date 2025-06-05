@@ -2,24 +2,19 @@ package ui
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
-type (
-	errMsg error
-)
 
-var inputTitleStyle = lipgloss.NewStyle().Foreground(Primary).Bold(true)
-
-type textinputModel struct {
+type textinputmodel struct {
 	textInput textinput.Model
 	err       error
 	output    *string
 	header    string
-	exit      *bool
+	exit      bool
 }
 
 // Intialize a Text Input
@@ -27,20 +22,19 @@ func NewTextInput(
 	header string,
 	output *string,
 	placeholder string,
-	exit *bool,
-) textinputModel {
+) textinputmodel {
 	ti := textinput.New()
 	ti.Focus()
 	ti.Placeholder = placeholder
 	ti.CharLimit = 156
 	ti.Width = 80
 
-	return textinputModel{
+	return textinputmodel{
 		textInput: ti,
 		err:       nil,
 		output:    output,
-		header:    inputTitleStyle.Render(header),
-		exit:      exit,
+		header:    TitleStyle.Render(header),
+		exit:      false,
 	}
 }
 
@@ -49,9 +43,8 @@ func NewValidated(
 	header string,
 	output *string,
 	placeholder string,
-	exit *bool,
 	validator func(string) error,
-) textinputModel {
+) textinputmodel {
 	ti := textinput.New()
 	ti.Focus()
 	ti.Placeholder = placeholder
@@ -59,20 +52,20 @@ func NewValidated(
 	ti.Width = 20
 	ti.Validate = validator
 
-	return textinputModel{
+	return textinputmodel{
 		textInput: ti,
 		err:       nil,
 		output:    output,
-		header:    inputTitleStyle.Render(header),
-		exit:      exit,
+		header:    TitleStyle.Render(header),
+		exit:      false,
 	}
 }
 
-func (m textinputModel) Init() tea.Cmd {
+func (m textinputmodel) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (m textinputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m textinputmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -87,14 +80,14 @@ func (m textinputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 		case tea.KeyCtrlC, tea.KeyEsc:
-			*m.exit = true
+			m.exit = true
 			return m, tea.Quit
 		}
 
 	// We handle errors just like any other message
-	case errMsg:
+	case error:
 		m.err = msg
-		*m.exit = true
+		m.exit = true
 		return m, nil
 	}
 
@@ -102,13 +95,26 @@ func (m textinputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m textinputModel) View() string {
+func (m textinputmodel) View() string {
 	return fmt.Sprintf("\n%s\n%s\n\n",
 		m.header,
 		m.textInput.View(),
 	)
 }
 
-func (m textinputModel) Err() string {
+func (m textinputmodel) Err() string {
 	return m.err.Error()
+}
+
+func (m textinputmodel) Run() (bool, error) {
+	tp := tea.NewProgram(m)
+	if _, err := tp.Run(); err != nil {
+		return m.exit, err
+	}
+	if m.exit {
+		if err := tp.ReleaseTerminal(); err != nil {
+			log.Fatal(err)
+		}
+	}
+	return m.exit, nil
 }

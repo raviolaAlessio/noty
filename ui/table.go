@@ -26,19 +26,41 @@ type TableColumn struct {
 	Title     string
 	Active    bool
 	Alignment TableAlignment
+	ValueFunc func(value string) string
+	StyleFunc func(style lipgloss.Style, value string) lipgloss.Style
 }
 
 func NewTableColumn(key string, title string, active bool) TableColumn {
 	return TableColumn{
-		Key:         key,
-		Title:       title,
-		Active:      active,
-		Alignment:   TableLeft,
+		Key:       key,
+		Title:     title,
+		Active:    active,
+		Alignment: TableLeft,
+		StyleFunc: func(style lipgloss.Style, value string) lipgloss.Style {
+			return style
+		},
+		ValueFunc: func(value string) string {
+			return value
+		},
 	}
 }
 
 func (c TableColumn) WithAlignment(a TableAlignment) TableColumn {
 	c.Alignment = a
+	return c
+}
+
+func (c TableColumn) WithValueFunc(
+	valueFunc func(value string) string,
+) TableColumn {
+	c.ValueFunc = valueFunc
+	return c
+}
+
+func (c TableColumn) WithStyleFunc(
+	styleFunc func(style lipgloss.Style, value string) lipgloss.Style,
+) TableColumn {
+	c.StyleFunc = styleFunc
 	return c
 }
 
@@ -67,14 +89,18 @@ func (t Table) WithRows(rows []TableRow) Table {
 }
 
 func (t Table) Render() string {
-	aligments := []TableAlignment{}
-	headers := []string{}
+	headers := make([]string, 0)
+
+	columnOffset := 0
+	columnOffsets := make([]int, 0)
 	for _, col := range t.columns {
 		if !col.Active {
+			columnOffset += 1
 			continue
 		}
+
+		columnOffsets = append(columnOffsets, columnOffset)
 		headers = append(headers, col.Title)
-		aligments = append(aligments, col.Alignment)
 	}
 
 	rows := [][]string{}
@@ -85,7 +111,7 @@ func (t Table) Render() string {
 				continue
 			}
 
-			value := rowEntry[col.Key]
+			value := col.ValueFunc(rowEntry[col.Key])
 			if value == "" {
 				value = t.emptyString
 			}
@@ -100,17 +126,17 @@ func (t Table) Render() string {
 		Border(lipgloss.NormalBorder()).
 		BorderLeft(false).BorderRight(false).BorderTop(false).BorderBottom(false).
 		BorderColumn(false).BorderHeader(false).
-		StyleFunc(func(row, col int) lipgloss.Style {
+		StyleFunc(func(row int, col int) lipgloss.Style {
 			var sty lipgloss.Style
+			column := t.columns[col + columnOffsets[col]]
 
-			switch {
-			case row == table.HeaderRow:
+			if row == table.HeaderRow {
 				sty = HeaderStyle
-			default:
-				sty = RowStyle
+			} else {
+				sty = column.StyleFunc(RowStyle, rows[row][col])
 			}
 
-			switch aligments[col] {
+			switch column.Alignment {
 			case TableLeft:
 				sty = sty.Align(lipgloss.Left)
 			case TableCenter:

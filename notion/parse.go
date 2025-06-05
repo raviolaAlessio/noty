@@ -1,6 +1,10 @@
 package notion
 
-import "github.com/jomei/notionapi"
+import (
+	"fmt"
+
+	"github.com/jomei/notionapi"
+)
 
 func ParseTitle(p notionapi.Property) string {
 	title := p.(*notionapi.TitleProperty).Title
@@ -44,4 +48,16 @@ func ParseRelation(p notionapi.Property) []string {
 		res = append(res, r.ID.String())
 	}
 	return res
+}
+
+func ParseDate(p notionapi.Property) string {
+	start := p.(*notionapi.DateProperty).Date.Start
+	end := p.(*notionapi.DateProperty).Date.End
+	if start != nil && end != nil {
+		return fmt.Sprintf("%s - %s", start.String(), end.String())
+	} else if start != nil {
+		return start.String()
+	} else {
+		return end.String()
+	}
 }

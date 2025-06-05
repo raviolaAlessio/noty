@@ -14,12 +14,18 @@ import (
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
-		ui.PrintlnfError("%s", err)
+		ui.PrintlnfError("Error: %s", err)
 		os.Exit(1)
 	}
 }
 
 func init() {
+	err := config.Init()
+	if err != nil {
+		ui.PrintlnfError("%s", err)
+		os.Exit(1)
+	}
+
 	rootCmd.AddCommand(configure.ConfigCmd)
 	rootCmd.AddCommand(task.TaskCmd)
 }
@@ -27,14 +33,10 @@ func init() {
 var rootCmd = &cobra.Command{
 	Use:   "noty",
 	Short: "A utility to manage notion tasks",
+	SilenceUsage: true,
+	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		err := config.Init()
-		if err != nil {
-			return err
-		}
-
-		if cmd.CalledAs() == "config" {
-			fmt.Println("config cmd")
+		if cmd.CalledAs() == configure.ConfigCmd.Use {
 			return nil
 		}
 

@@ -2,9 +2,7 @@ package configure
 
 import (
 	"context"
-	"log"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/ravvio/noty/config"
 	"github.com/ravvio/noty/notion"
 	"github.com/ravvio/noty/ui"
@@ -13,12 +11,7 @@ import (
 )
 
 func init() {
-}
-
-func release(tp *tea.Program) {
-	if err := tp.ReleaseTerminal(); err != nil {
-		log.Fatal(err)
-	}
+	ConfigCmd.Flags().BoolP("redo", "r", false, "repeat all configuration steps")
 }
 
 var ConfigCmd = &cobra.Command{
@@ -33,48 +26,52 @@ var ConfigCmd = &cobra.Command{
 			return err
 		}
 
-		exit := false
+		// Flags
+		redo, err := cmd.Flags().GetBool("redo")
+		if err != nil {
+			return err
+		}
 
 		// Set task table
-		viper.SetDefault("tasks_database_id", "")
-		pTasksDatabaseID := config.TasksDatabaseID()
-		tasksDatabaseID := pTasksDatabaseID
-		tp := tea.NewProgram(ui.NewTextInput(
+		tasksDatabaseID := config.TasksDatabaseID()
+		if exit, err := ui.NewTextInput(
 			"Tasks Database ID",
 			&tasksDatabaseID,
-			pTasksDatabaseID,
-			&exit,
-		))
-		if _, err := tp.Run(); err != nil {
+			tasksDatabaseID,
+		).Run(); err != nil || exit {
 			return err
 		}
-		if exit {
-			release(tp)
-			return nil
-		}
-		viper.Set("tasks_database_id", tasksDatabaseID)
+		viper.Set(config.KeyTasksDatabaseID, tasksDatabaseID)
 
 		// Set users table
-		viper.SetDefault("projects_database_id", "")
-		pProjectsDatabseID := config.ProjectsDatabaseID()
-		projectsDatabaseID := pProjectsDatabseID
-		tp = tea.NewProgram(ui.NewTextInput(
+		projectsDatabaseID := config.ProjectsDatabaseID()
+		if exit, err := ui.NewTextInput(
 			"Projects Database ID",
 			&projectsDatabaseID,
-			pProjectsDatabseID,
-			&exit,
-		))
-		if _, err := tp.Run(); err != nil {
+			projectsDatabaseID,
+		).Run(); err != nil || exit {
 			return err
 		}
-		if exit {
-			release(tp)
-			return nil
+		viper.Set(config.KeyProjectsDatabaseID, projectsDatabaseID)
+
+		// Emotes
+		if !redo && !viper.IsSet(config.KeyUseEmotes) {
+			useEmotes := config.UseEmotes()
+			if exit, err := ui.NewSelectInput(
+				"Do you want to use emotes (✅, 🔴, 🚀) in outputs?",
+				[]ui.SelectItem[bool]{
+					ui.NewSelectItem("Yes", true),
+					ui.NewSelectItem("No", false),
+				},
+				&useEmotes,
+			).Run(); err != nil || exit {
+				return err
+			}
+			viper.Set(config.KeyUseEmotes, useEmotes)
 		}
-		viper.Set("projects_database_id", projectsDatabaseID)
 
 		// Fetch all users
-		_, err = ui.Spin(
+		if _, err = ui.Spin(
 			"Loading users",
 			func() error {
 				fetcherUsers := client.NewUserFetcher(ctx, true)
@@ -82,16 +79,15 @@ var ConfigCmd = &cobra.Command{
 				if err != nil {
 					return err
 				}
-				viper.Set("users", users)
+				viper.Set(config.KeyUsers, users)
 				return nil
 			},
-		)
-		if err != nil {
+		); err != nil {
 			return err
 		}
 
 		// Fetch all projects
-		_, err = ui.Spin(
+		if _, err = ui.Spin(
 			"Loading projects",
 			func() error {
 				fetcherProjects := client.NewProjectFetcher(ctx, config.ProjectsDatabaseID())
@@ -99,10 +95,12 @@ var ConfigCmd = &cobra.Command{
 				if err != nil {
 					return err
 				}
-				viper.Set("projects", projects)
+				viper.Set(config.KeyProjects, projects)
 				return nil
 			},
-		)
+		); err != nil {
+			return err
+		}
 
 		filename, err := config.Save()
 		if err != nil {

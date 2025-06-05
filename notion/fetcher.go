@@ -52,13 +52,21 @@ func (f Fetcher[C, T]) WithLimit(limit int) Fetcher[C, T] {
 	return f
 }
 
-func (f *Fetcher[C, T]) HasNextPage() bool {
-	return f.first_page ||
-		(f.next_token != nil && (f.limit < 0 || f.fetched < f.limit))
+func (f *Fetcher[C, T]) Done() bool {
+	return !f.first_page &&
+		(f.next_token == nil || (f.limit >= 0 && f.fetched >= f.limit))
+}
+
+func (f *Fetcher[C, T]) HasMore() bool {
+	return f.first_page || f.next_token != nil
+}
+
+func (f *Fetcher[C, T]) ClientHasMore() bool {
+	return f.first_page || f.next_token != nil
 }
 
 func (f *Fetcher[C, T]) NextPage() ([]T, error) {
-	if !f.HasNextPage() {
+	if f.Done() {
 		return nil, fmt.Errorf("no next page")
 	}
 	f.client.SetNextToken(f.next_token)
@@ -96,7 +104,7 @@ func (f *Fetcher[C, T]) All() ([]T, error) {
 
 		res = append(res, r...)
 
-		if !f.HasNextPage() {
+		if f.Done() {
 			break
 		}
 	}

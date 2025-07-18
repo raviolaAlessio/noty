@@ -160,7 +160,7 @@ func (t *Table) Render() string {
 }
 
 func (t *Table) ExportCSV(path string) error {
-	fd, err := os.OpenFile(path, os.O_WRONLY | os.O_CREATE, 0666)
+	fd, err := os.Create(path)
 	if err != nil {
 		return err
 	}
@@ -168,7 +168,9 @@ func (t *Table) ExportCSV(path string) error {
 
 	header := make([]string, 0)
 	for _, col := range t.columns {
-		header = append(header, col.Title)
+		if col.Active {
+			header = append(header, col.Title)
+		}
 	}
 
 	err = w.Write(header)

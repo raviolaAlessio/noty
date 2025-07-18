@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -28,10 +27,18 @@ func init() {
 	// Status
 	TaskCmd.Flags().StringSliceP("status", "s", []string{}, "filter tasks by status(es) [NS, P, TBT, T, D]")
 
+	// Sprint
+	TaskCmd.Flags().BoolP("backlog", "b", false, "include backlog tasks")
+	TaskCmd.Flags().Bool("only-backlog", false, "include only backlog tasks")
+	TaskCmd.MarkFlagsMutuallyExclusive("backlog", "only-backlog")
+
 	// Limits
 	TaskCmd.Flags().Bool("all", false, "fetch all tasks")
 	TaskCmd.Flags().IntP("limit", "l", 50, "limit the number of tasks to fetch")
 	TaskCmd.MarkFlagsMutuallyExclusive("all", "limit")
+
+	// Export
+	TaskCmd.Flags().String("csv", "", "export result to csv")
 }
 
 var TaskCmd = &cobra.Command{
@@ -57,7 +64,6 @@ var TaskCmd = &cobra.Command{
 			for _, user := range users {
 				if strings.Contains(strings.ToLower(user.Name), strings.ToLower(assignee)) {
 					filter.Assignee = &user.ID
-					break
 				}
 			}
 			if filter.Assignee == nil {
@@ -71,7 +77,6 @@ var TaskCmd = &cobra.Command{
 			for _, user := range usersList {
 				if strings.Contains(strings.ToLower(user.Name), strings.ToLower(reviewer)) {
 					filter.Reviewer = &user.ID
-					break
 				}
 			}
 			if filter.Reviewer == nil {
@@ -85,7 +90,6 @@ var TaskCmd = &cobra.Command{
 			for _, user := range usersList {
 				if strings.Contains(strings.ToLower(user.Name), strings.ToLower(username)) {
 					filter.User = &user.ID
-					break
 				}
 			}
 			if filter.User == nil {
@@ -124,23 +128,30 @@ var TaskCmd = &cobra.Command{
 				switch strings.ToUpper(status) {
 				case "NS":
 					filter.Statuses = append(filter.Statuses, notion.StatusNotStarted)
-					break
 				case "P":
 					filter.Statuses = append(filter.Statuses, notion.StatusInProgress)
-					break
 				case "TBT":
 					filter.Statuses = append(filter.Statuses, notion.StatusToBeTested)
-					break
 				case "T":
 					filter.Statuses = append(filter.Statuses, notion.StatusInTesting)
-					break
 				case "D":
 					filter.Statuses = append(filter.Statuses, notion.StatusDone)
-					break
 				default:
 					return fmt.Errorf("unknown status '%s', valid values are [NS, P, TBT, T, D]", status)
 				}
 			}
+		}
+		// Backlog Flag
+		if backlog, err := cmd.Flags().GetBool("backlog"); err != nil {
+			return err
+		} else if backlog {
+			filter.Sprint = notion.SprintTypeAll
+		} else if onlyBacklog, err := cmd.Flags().GetBool("only-backlog"); err != nil {
+			return err
+		} else if onlyBacklog {
+			filter.Sprint = notion.SprintTypeOnlyBacklog
+		} else {
+			filter.Sprint = notion.SprintTypeNoBacklog
 		}
 
 		// Create fetcher
@@ -186,13 +197,11 @@ var TaskCmd = &cobra.Command{
 			ui.NewTableColumn(keyReviewer, "Reviewer", true),
 			ui.NewTableColumn(keyStatus, "Status", true).WithValueFunc(
 				func(value string) string {
-					if !config.UseEmotes() {
-						return value
-					}
-
-					emote := config.StatusEmote(value)
-					if emote != "" {
-						value = fmt.Sprintf("%s %s", emote, value)
+					if config.UseEmotes() {
+						emote := config.StatusEmote(value)
+						if emote != "" {
+							value = fmt.Sprintf("%s %s", emote, value)
+						}
 					}
 					return value
 				},
@@ -213,6 +222,8 @@ var TaskCmd = &cobra.Command{
 			ui.NewTableColumn(keyCreatedTime, "Created", true),
 		}
 
+		timeFormat := config.DatetimeFormat()
+
 		// Add rows
 		rows := make([]ui.TableRow, 0, len(tasks))
 		for _, task := range tasks {
@@ -224,7 +235,7 @@ var TaskCmd = &cobra.Command{
 				keyReviewer:    strings.Join(task.Reviewer, ", "),
 				keyStatus:      task.Status,
 				keyPriority:    task.Priority,
-				keyCreatedTime: task.Created.Format(time.RFC3339),
+				keyCreatedTime: task.Created.Local().Format(timeFormat),
 			})
 		}
 		// Render result
@@ -235,7 +246,19 @@ var TaskCmd = &cobra.Command{
 		if taskFetcher.HasMore() {
 			resultLog += ", has more"
 		}
-		ui.PrintlnfInfo(resultLog)
+		ui.PrintlnInfo(resultLog)
+
+		// Export
+		if csvPath, err := cmd.Flags().GetString("csv"); err != nil {
+			return err
+		} else if csvPath != "" {
+			err = table.ExportCSV(csvPath)
+			if err != nil {
+				ui.PrintlnfWarn("Could not export to CSV: %s", err.Error())
+			} else {
+				ui.PrintlnfInfo("Data exported to CSV file %s", csvPath)
+			}
+		}
 
 		return nil
 	},

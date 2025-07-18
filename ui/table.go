@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"encoding/csv"
+	"os"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 )
@@ -88,22 +91,8 @@ func (t Table) WithRows(rows []TableRow) Table {
 	return t
 }
 
-func (t Table) Render() string {
-	headers := make([]string, 0)
-
-	columnOffset := 0
-	columnOffsets := make([]int, 0)
-	for _, col := range t.columns {
-		if !col.Active {
-			columnOffset += 1
-			continue
-		}
-
-		columnOffsets = append(columnOffsets, columnOffset)
-		headers = append(headers, col.Title)
-	}
-
-	rows := [][]string{}
+func (t *Table) getRowMatrix() [][]string {
+	rows := make([][]string, 0)
 	for _, rowEntry := range t.rows {
 		row := []string{}
 		for _, col := range t.columns {
@@ -119,6 +108,25 @@ func (t Table) Render() string {
 		}
 		rows = append(rows, row)
 	}
+	return rows
+}
+
+func (t *Table) Render() string {
+	headers := make([]string, 0)
+
+	columnOffset := 0
+	columnOffsets := make([]int, 0)
+	for _, col := range t.columns {
+		if !col.Active {
+			columnOffset += 1
+			continue
+		}
+
+		columnOffsets = append(columnOffsets, columnOffset)
+		headers = append(headers, col.Title)
+	}
+
+	rows := t.getRowMatrix()
 
 	lt := table.New().
 		Headers(headers...).
@@ -149,4 +157,28 @@ func (t Table) Render() string {
 		})
 
 	return lt.Render()
+}
+
+func (t *Table) ExportCSV(path string) error {
+	fd, err := os.OpenFile(path, os.O_WRONLY | os.O_CREATE, 0666)
+	if err != nil {
+		return err
+	}
+	w := csv.NewWriter(fd)
+
+	header := make([]string, 0)
+	for _, col := range t.columns {
+		header = append(header, col.Title)
+	}
+
+	err = w.Write(header)
+	if err != nil {
+		return err
+	}
+	err = w.WriteAll(t.getRowMatrix())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

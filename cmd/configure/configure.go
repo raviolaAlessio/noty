@@ -32,7 +32,7 @@ var ConfigCmd = &cobra.Command{
 			return err
 		}
 
-		// Set task table
+		// Set task db
 		tasksDatabaseID := config.TasksDatabaseID()
 		if exit, err := ui.NewTextInput(
 			"Tasks Database ID",
@@ -43,7 +43,7 @@ var ConfigCmd = &cobra.Command{
 		}
 		viper.Set(config.KeyTasksDatabaseID, tasksDatabaseID)
 
-		// Set users table
+		// Set projects db
 		projectsDatabaseID := config.ProjectsDatabaseID()
 		if exit, err := ui.NewTextInput(
 			"Projects Database ID",
@@ -53,6 +53,18 @@ var ConfigCmd = &cobra.Command{
 			return err
 		}
 		viper.Set(config.KeyProjectsDatabaseID, projectsDatabaseID)
+
+		// Set sprints db
+		sprintsDatabaseID := config.SprintsDatabaseID()
+		if exit, err := ui.NewTextInput(
+			"Sprints Database ID",
+			&sprintsDatabaseID,
+			sprintsDatabaseID,
+		).Run(); err != nil || exit {
+			return err
+		}
+		viper.Set(config.KeySprintsDatabaseID, sprintsDatabaseID)
+
 
 		// Emotes
 		if !redo && !viper.IsSet(config.KeyUseEmotes) {

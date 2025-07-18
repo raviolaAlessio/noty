@@ -13,10 +13,12 @@ import (
 const (
 	KeyTasksDatabaseID    = "tasks_database_id"
 	KeyProjectsDatabaseID = "projects_database_id"
+	KeySprintsDatabaseID  = "sprints_database_id"
 	KeyUsers              = "users"
 	KeyProjects           = "projects"
 	KeyUseEmotes          = "use_emotes"
 	KeyStatusEmotes       = "status_emotes"
+	KeyDatetimeFormat     = "datetime_format"
 )
 
 func ConfigDir() (string, error) {
@@ -30,6 +32,7 @@ func ConfigDir() (string, error) {
 func Init() error {
 	viper.SetDefault(KeyTasksDatabaseID, "")
 	viper.SetDefault(KeyProjectsDatabaseID, "")
+	viper.SetDefault(KeySprintsDatabaseID, "")
 
 	viper.SetDefault(KeyUseEmotes, true)
 	viper.SetDefault(KeyStatusEmotes, map[string]string{
@@ -40,6 +43,8 @@ func Init() error {
 		"done":         "✅",
 		"cancelled":    "❌",
 	})
+
+	viper.SetDefault(KeyDatetimeFormat, "2006-01-02 15:04")
 
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
@@ -93,6 +98,10 @@ func ProjectsDatabaseID() string {
 	return viper.GetString(KeyProjectsDatabaseID)
 }
 
+func SprintsDatabaseID() string {
+	return viper.GetString(KeySprintsDatabaseID)
+}
+
 func UseEmotes() bool {
 	return viper.GetBool(KeyUseEmotes)
 }
@@ -103,6 +112,10 @@ func StatusEmotes() map[string]string {
 
 func StatusEmote(value string) string {
 	return StatusEmotes()[strings.ReplaceAll(strings.ToLower(value), " ", "_")]
+}
+
+func DatetimeFormat() string {
+	return viper.GetString(KeyDatetimeFormat)
 }
 
 func Users() []notion.NotionUser {

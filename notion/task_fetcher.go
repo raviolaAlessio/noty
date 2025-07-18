@@ -15,12 +15,21 @@ const (
 	StatusDone       = "Done"
 )
 
+type SprintType int
+
+const (
+	SprintTypeAll = iota
+	SprintTypeNoBacklog
+	SprintTypeOnlyBacklog
+)
+
 type TaskFilter struct {
 	Projects []string
 	User     *string
 	Assignee *string
 	Reviewer *string
 	Statuses []string
+	Sprint   SprintType
 }
 
 func (self *TaskFilter) ToFilter() notionapi.Filter {
@@ -88,6 +97,27 @@ func (self *TaskFilter) ToFilter() notionapi.Filter {
 		filter = append(filter, statusFilter)
 	}
 
+	switch self.Sprint {
+	case SprintTypeNoBacklog:
+		filter = append(filter, notionapi.PropertyFilter{
+			Property: "Sprint",
+			Relation: &notionapi.RelationFilterCondition{
+				IsNotEmpty: true,
+			},
+		})
+		break
+	case SprintTypeOnlyBacklog:
+		filter = append(filter, notionapi.PropertyFilter{
+			Property: "Sprint",
+			Relation: &notionapi.RelationFilterCondition{
+				IsEmpty: true,
+			},
+		})
+		break
+	default:
+		break
+	}
+
 	return filter
 }
 
@@ -100,6 +130,8 @@ type Task struct {
 	Priority  string
 	ProjectID []string
 	Created   time.Time
+	// TODO: missing authorization
+	// Backlog   bool
 }
 
 func parseTaskPage(p notionapi.Page) Task {

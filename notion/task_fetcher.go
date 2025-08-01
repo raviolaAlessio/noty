@@ -15,13 +15,41 @@ const (
 	StatusDone       = "Done"
 )
 
-type SprintType int
+type TaskSprintFilter interface {
+	ToFilter() notionapi.PropertyFilter
+}
 
-const (
-	SprintTypeAll = iota
-	SprintTypeNoBacklog
-	SprintTypeOnlyBacklog
-)
+type TaskSprintNoBacklog struct{}
+func (self TaskSprintNoBacklog) ToFilter() notionapi.PropertyFilter {
+	return notionapi.PropertyFilter{
+		Property: "Sprint",
+		Relation: &notionapi.RelationFilterCondition{
+			IsNotEmpty: true,
+		},
+	}
+}
+
+type TaskSprintOnlyBacklog struct {}
+func (self TaskSprintOnlyBacklog) ToFilter() notionapi.PropertyFilter {
+	return notionapi.PropertyFilter{
+		Property: "Sprint",
+		Relation: &notionapi.RelationFilterCondition{
+			IsEmpty: true,
+		},
+	}
+}
+
+type TaskSprintByID struct {
+	ID string
+}
+func (self TaskSprintByID) ToFilter() notionapi.PropertyFilter {
+	return notionapi.PropertyFilter{
+		Property: "Sprint",
+		Relation: &notionapi.RelationFilterCondition{
+			Contains: self.ID,
+		},
+	}
+}
 
 type TaskFilter struct {
 	Projects []string
@@ -29,7 +57,8 @@ type TaskFilter struct {
 	Assignee *string
 	Reviewer *string
 	Statuses []string
-	Sprint   SprintType
+	Sprint   TaskSprintFilter
+	Estimate string
 }
 
 func (self *TaskFilter) ToFilter() notionapi.Filter {
@@ -97,25 +126,8 @@ func (self *TaskFilter) ToFilter() notionapi.Filter {
 		filter = append(filter, statusFilter)
 	}
 
-	switch self.Sprint {
-	case SprintTypeNoBacklog:
-		filter = append(filter, notionapi.PropertyFilter{
-			Property: "Sprint",
-			Relation: &notionapi.RelationFilterCondition{
-				IsNotEmpty: true,
-			},
-		})
-		break
-	case SprintTypeOnlyBacklog:
-		filter = append(filter, notionapi.PropertyFilter{
-			Property: "Sprint",
-			Relation: &notionapi.RelationFilterCondition{
-				IsEmpty: true,
-			},
-		})
-		break
-	default:
-		break
+	if (self.Sprint != nil) {
+		filter = append(filter, (self.Sprint).ToFilter())
 	}
 
 	return filter
@@ -130,8 +142,7 @@ type Task struct {
 	Priority  string
 	ProjectID []string
 	Created   time.Time
-	// TODO: missing authorization
-	// Backlog   bool
+	Estimate  float64
 }
 
 func parseTaskPage(p notionapi.Page) Task {
@@ -144,6 +155,7 @@ func parseTaskPage(p notionapi.Page) Task {
 		Priority:  ParseSelect(p.Properties["Priority"]),
 		ProjectID: ParseRelation(p.Properties["Project"]),
 		Created:   p.CreatedTime,
+		Estimate:  ParseNumber(p.Properties["estimate hours"]),
 	}
 }
 

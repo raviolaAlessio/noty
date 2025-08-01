@@ -3,6 +3,8 @@ package task
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -12,6 +14,42 @@ import (
 	"github.com/ravvio/noty/notion"
 	"github.com/ravvio/noty/ui"
 )
+
+// choiceValue implements the [pflag.Value] interface.
+type choiceValue struct {
+	value    string
+	validate func(string) error
+}
+
+// Set sets the value of the choice.
+func (f *choiceValue) Set(s string) error {
+	err := f.validate(s)
+	if err != nil {
+		return err
+	}
+
+	f.value = s
+	return nil
+}
+
+// Type returns the type of the choice, which must be "string" for [pflag.FlagSet.GetString].
+func (f *choiceValue) Type() string { return "string" }
+
+// String returns the current value of the choice.
+func (f *choiceValue) String() string { return f.value }
+
+// StringChoice returns a [choiceValue] that validates the value against a set
+// of choices. Only the last value will be used if multiple values are set.
+func StringChoice(choices []string) *choiceValue {
+	return &choiceValue{
+		validate: func(s string) error {
+			if slices.Contains(choices, s) {
+				return nil
+			}
+			return fmt.Errorf("must be one of %v", choices)
+		},
+	}
+}
 
 func init() {
 	// Users
@@ -28,9 +66,9 @@ func init() {
 	TaskCmd.Flags().StringSliceP("status", "s", []string{}, "filter tasks by status(es) [NS, P, TBT, T, D]")
 
 	// Sprint
-	TaskCmd.Flags().BoolP("backlog", "b", false, "include backlog tasks")
-	TaskCmd.Flags().Bool("only-backlog", false, "include only backlog tasks")
-	TaskCmd.MarkFlagsMutuallyExclusive("backlog", "only-backlog")
+	TaskCmd.Flags().Var(StringChoice([]string{
+		"default", "all", "backlog", "current",
+	}), "sprint", "sprint to search taskts in")
 
 	// Limits
 	TaskCmd.Flags().Bool("all", false, "fetch all tasks")
@@ -38,7 +76,7 @@ func init() {
 	TaskCmd.MarkFlagsMutuallyExclusive("all", "limit")
 
 	// Export
-	TaskCmd.Flags().String("csv", "", "export result to csv")
+	TaskCmd.Flags().StringP("outfile", "o", "", "export result as csv")
 }
 
 var TaskCmd = &cobra.Command{
@@ -141,17 +179,34 @@ var TaskCmd = &cobra.Command{
 				}
 			}
 		}
-		// Backlog Flag
-		if backlog, err := cmd.Flags().GetBool("backlog"); err != nil {
+
+		// Sprint Flag
+		if sprint, err := cmd.Flags().GetString("sprint"); err != nil {
 			return err
-		} else if backlog {
-			filter.Sprint = notion.SprintTypeAll
-		} else if onlyBacklog, err := cmd.Flags().GetBool("only-backlog"); err != nil {
-			return err
-		} else if onlyBacklog {
-			filter.Sprint = notion.SprintTypeOnlyBacklog
-		} else {
-			filter.Sprint = notion.SprintTypeNoBacklog
+		} else if sprint == "default" {
+			filter.Sprint = notion.TaskSprintNoBacklog{}
+		} else if sprint == "all" {
+			filter.Sprint = nil
+		} else if sprint == "backlog" {
+			filter.Sprint = notion.TaskSprintOnlyBacklog{}
+		} else if sprint == "current" {
+			// Fetch sprint
+			s := "Current"
+			sprintFetcher := notionClient.NewSprintFetcher(
+				ctx,
+				config.SprintsDatabaseID(),
+				notion.SprintFilter{
+					Status: &s,
+				},
+			)
+			res, err := sprintFetcher.NextOne()
+			if err != nil {
+				return err
+			}
+			// Set ID as filter
+			filter.Sprint = notion.TaskSprintByID{
+				ID: res.ID,
+			}
 		}
 
 		// Create fetcher
@@ -187,6 +242,7 @@ var TaskCmd = &cobra.Command{
 			keyAssignee    = "assignee"
 			keyReviewer    = "reviewer"
 			keyPriority    = "priority"
+			keyEstimate    = "estimate"
 			keyCreatedTime = "created_time"
 		)
 		columns := []ui.TableColumn{
@@ -206,6 +262,7 @@ var TaskCmd = &cobra.Command{
 					return value
 				},
 			),
+			ui.NewTableColumn(keyEstimate, "Estimate", true).WithAlignment(ui.TableRight),
 			ui.NewTableColumn(keyPriority, "Priority", true).WithStyleFunc(
 				func(style lipgloss.Style, value string) lipgloss.Style {
 					switch value {
@@ -227,13 +284,18 @@ var TaskCmd = &cobra.Command{
 		// Add rows
 		rows := make([]ui.TableRow, 0, len(tasks))
 		for _, task := range tasks {
+			project := ""
+			if (len(task.ProjectID) > 0) {
+				project = projectsMap[task.ProjectID[0]]
+			}
 			rows = append(rows, ui.TableRow{
 				keyId:          task.ID,
-				keyProject:     projectsMap[task.ProjectID[0]],
+				keyProject:     project,
 				keyName:        task.Name,
 				keyAssignee:    strings.Join(task.Assignee, ", "),
 				keyReviewer:    strings.Join(task.Reviewer, ", "),
 				keyStatus:      task.Status,
+				keyEstimate:    fmt.Sprintf("%.1f h", task.Estimate),
 				keyPriority:    task.Priority,
 				keyCreatedTime: task.Created.Local().Format(timeFormat),
 			})
@@ -249,14 +311,18 @@ var TaskCmd = &cobra.Command{
 		ui.PrintlnInfo(resultLog)
 
 		// Export
-		if csvPath, err := cmd.Flags().GetString("csv"); err != nil {
+		if outfile, err := cmd.Flags().GetString("outfile"); err != nil {
 			return err
-		} else if csvPath != "" {
-			err = table.ExportCSV(csvPath)
+		} else if outfile != "" {
+			abs, err := filepath.Abs(outfile)
+			if err != nil {
+				return err
+			}
+			err = table.ExportCSV(abs)
 			if err != nil {
 				ui.PrintlnfWarn("Could not export to CSV: %s", err.Error())
 			} else {
-				ui.PrintlnfInfo("Data exported to CSV file %s", csvPath)
+				ui.PrintlnfInfo("Data exported to CSV file %s", abs)
 			}
 		}
 

@@ -24,6 +24,10 @@ func ParseRichText(p notionapi.Property) string {
 	return result
 }
 
+func ParseNumber(p notionapi.Property) float64 {
+	return p.(*notionapi.NumberProperty).Number
+}
+
 func ParseStatus(p notionapi.Property) string {
 	return  p.(*notionapi.StatusProperty).Status.Name
 }

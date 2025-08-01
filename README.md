@@ -16,7 +16,7 @@ customization can be done.
 To get the assigned task of a user, with status Not Started, Progress or
 To Be Tested and export them to a csv use.
 ```
-go run . task -a <assignee_name> -s NS,P,TBT --csv export.csv
+go run . task -a <assignee_name> -s NS,P,TBT --outfile out.csv
 ```
 
 Other flags are available.

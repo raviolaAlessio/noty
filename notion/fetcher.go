@@ -111,3 +111,22 @@ func (f *Fetcher[C, T]) All() ([]T, error) {
 
 	return res, nil
 }
+
+func (f *Fetcher[C, T]) NextOne() (*T, error) {
+	if f.Done() {
+		return nil, fmt.Errorf("no next page")
+	}
+	f.client.SetNextToken(f.next_token)
+
+	f.client.SetRequestLimit(1)
+
+	res, err := f.client.Fetch(f.ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	f.first_page = false
+	f.fetched += int(len(res.Data))
+	f.next_token = res.NextToken
+	return &res.Data[0], nil
+}

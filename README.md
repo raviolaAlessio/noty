@@ -14,9 +14,9 @@ customization can be done.
 
 ## Use
 To get the assigned task of a user, with status Not Started, Progress or
-To Be Tested and export them to a csv use.
+To Be Tested, in the current sprint and export them to a csv use.
 ```
-go run . task -a <assignee_name> -s NS,P,TBT --outfile out.csv
+go run . task -a <assignee_name> -s NS,P,TBT --sprint current --outfile out.csv
 ```
 
 Other flags are available.

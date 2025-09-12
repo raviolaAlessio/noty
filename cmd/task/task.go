@@ -274,7 +274,7 @@ var TaskCmd = &cobra.Command{
 			ui.NewTableColumn(keyId, "ID", false).WithAlignment(ui.TableRight),
 			ui.NewTableColumn(keyStoryId, "Story ID", true),
 			ui.NewTableColumn(keyProject, "Project", true),
-			ui.NewTableColumn(keyName, "Name", true),
+			ui.NewTableColumn(keyName, "Name", true).WithMaxWidth(40),
 			ui.NewTableColumn(keyAssignee, "Assignee", true),
 			ui.NewTableColumn(keyReviewer, "Reviewer", true),
 			ui.NewTableColumn(keyStatus, "Status", true).WithValueFunc(

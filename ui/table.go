@@ -2,6 +2,7 @@ package ui
 
 import (
 	"encoding/csv"
+	"fmt"
 	"os"
 
 	"github.com/charmbracelet/lipgloss"
@@ -28,6 +29,7 @@ type TableColumn struct {
 	Key       string
 	Title     string
 	Active    bool
+	MaxWidth  int
 	Alignment TableAlignment
 	ValueFunc func(value string) string
 	StyleFunc func(style lipgloss.Style, value string) lipgloss.Style
@@ -38,6 +40,7 @@ func NewTableColumn(key string, title string, active bool) TableColumn {
 		Key:       key,
 		Title:     title,
 		Active:    active,
+		MaxWidth: -1,
 		Alignment: TableLeft,
 		StyleFunc: func(style lipgloss.Style, value string) lipgloss.Style {
 			return style
@@ -46,6 +49,11 @@ func NewTableColumn(key string, title string, active bool) TableColumn {
 			return value
 		},
 	}
+}
+
+func (c TableColumn) WithMaxWidth(w int) TableColumn {
+	c.MaxWidth = w
+	return c
 }
 
 func (c TableColumn) WithAlignment(a TableAlignment) TableColumn {
@@ -103,6 +111,9 @@ func (t *Table) getRowMatrix() [][]string {
 			value := col.ValueFunc(rowEntry[col.Key])
 			if value == "" {
 				value = t.emptyString
+			}
+			if col.MaxWidth > 0 && col.MaxWidth < len(value) {
+				value = fmt.Sprintf("%s...", value[0:col.MaxWidth - 3])
 			}
 			row = append(row, value)
 		}

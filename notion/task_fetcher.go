@@ -13,6 +13,7 @@ const (
 	StatusToBeTested = "To Be Tested"
 	StatusInTesting  = "In Testing"
 	StatusDone       = "Done"
+	StatusNotDone    = "Not Done"
 )
 
 type TaskSprintFilter interface {
@@ -135,6 +136,7 @@ func (self *TaskFilter) ToFilter() notionapi.Filter {
 
 type Task struct {
 	ID        string
+	StoryID   string
 	Name      string
 	Assignee  []string
 	Reviewer  []string
@@ -148,6 +150,7 @@ type Task struct {
 func parseTaskPage(p notionapi.Page) Task {
 	return Task{
 		ID:        p.ID.String(),
+		StoryID:   ParseUniqueID(p.Properties["Story ID"]),
 		Name:      ParseTitle(p.Properties["Task name"]),
 		Status:    ParseStatus(p.Properties["Status"]),
 		Assignee:  ParsePeople(p.Properties["Assignee"]),

@@ -13,10 +13,10 @@ if the epics or the users change this command must be run again. Other
 customization can be done.
 
 ## Use
-To get the assigned task of a user, with status Not Started, Progress or
-To Be Tested, in the current sprint and export them to a csv use.
+To get the assigned task of a user, with status Not Started, Progress,
+To Be Tested or Not Done, in the current sprint and export them to a csv use.
 ```
-go run . task -a <assignee_name> -s NS,P,TBT --sprint current --outfile out.csv
+go run . task -a <assignee_name> -s NS,P,TBT,ND --sprint current --outfile out.csv
 ```
 
 Other flags are available.

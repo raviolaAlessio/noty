@@ -6,6 +6,11 @@ import (
 	"github.com/jomei/notionapi"
 )
 
+func ParseUniqueID(p notionapi.Property) string {
+	title := p.(*notionapi.UniqueIDProperty).UniqueID
+	return title.String()
+}
+
 func ParseTitle(p notionapi.Property) string {
 	title := p.(*notionapi.TitleProperty).Title
 	result := ""

@@ -63,7 +63,7 @@ func init() {
 	TaskCmd.Flags().StringSliceP("project", "p", []string{}, "filter by project(s)")
 
 	// Status
-	TaskCmd.Flags().StringSliceP("status", "s", []string{}, "filter tasks by status(es) [NS, P, TBT, T, D]")
+	TaskCmd.Flags().StringSliceP("status", "s", []string{}, "filter tasks by status(es) [NS, P, TBT, T, D, ND]")
 
 	// Sprint
 	TaskCmd.Flags().Var(StringChoice([]string{
@@ -174,6 +174,8 @@ var TaskCmd = &cobra.Command{
 					filter.Statuses = append(filter.Statuses, notion.StatusInTesting)
 				case "D":
 					filter.Statuses = append(filter.Statuses, notion.StatusDone)
+				case "ND":
+					filter.Statuses = append(filter.Statuses, notion.StatusNotDone)
 				default:
 					return fmt.Errorf("unknown status '%s', valid values are [NS, P, TBT, T, D]", status)
 				}
@@ -236,6 +238,7 @@ var TaskCmd = &cobra.Command{
 		// Setup table
 		var (
 			keyId          = "id"
+			keyStoryId     = "storyId"
 			keyProject     = "project"
 			keyName        = "name"
 			keyStatus      = "status"
@@ -247,6 +250,7 @@ var TaskCmd = &cobra.Command{
 		)
 		columns := []ui.TableColumn{
 			ui.NewTableColumn(keyId, "ID", false).WithAlignment(ui.TableRight),
+			ui.NewTableColumn(keyStoryId, "Story ID", true),
 			ui.NewTableColumn(keyProject, "Project", true),
 			ui.NewTableColumn(keyName, "Name", true),
 			ui.NewTableColumn(keyAssignee, "Assignee", true),
@@ -290,6 +294,7 @@ var TaskCmd = &cobra.Command{
 			}
 			rows = append(rows, ui.TableRow{
 				keyId:          task.ID,
+				keyStoryId:     task.StoryID,
 				keyProject:     project,
 				keyName:        task.Name,
 				keyAssignee:    strings.Join(task.Assignee, ", "),

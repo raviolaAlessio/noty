@@ -17,32 +17,37 @@ import (
 )
 
 // choiceValue implements the [pflag.Value] interface.
-type choiceValue struct {
-	value    string
-	validate func(string) error
+type choiceValue[T any] struct {
+	value     T
+	validate  func(T) error
+	convert   func(string) (T, error)
+	toString  func(T) string
+	valueType string
 }
 
 // Set sets the value of the choice.
-func (f *choiceValue) Set(s string) error {
-	err := f.validate(s)
+func (f *choiceValue[T]) Set(s string) error {
+	v, err := f.convert(s)
+	if err != nil {
+		return err
+	}
+	err = f.validate(v)
 	if err != nil {
 		return err
 	}
 
-	f.value = s
+	f.value = v
 	return nil
 }
 
-// Type returns the type of the choice, which must be "string" for [pflag.FlagSet.GetString].
-func (f *choiceValue) Type() string { return "string" }
+// Type returns the type of the choice
+func (f *choiceValue[T]) Type() string { return f.valueType }
 
 // String returns the current value of the choice.
-func (f *choiceValue) String() string { return f.value }
+func (f *choiceValue[T]) String() string { return f.toString(f.value) }
 
-// StringChoice returns a [choiceValue] that validates the value against a set
-// of choices. Only the last value will be used if multiple values are set.
-func StringChoiceOrNumber(choices []string) *choiceValue {
-	return &choiceValue{
+func StringChoiceOrNumber(choices []string) *choiceValue[string] {
+	return &choiceValue[string]{
 		validate: func(s string) error {
 			if slices.Contains(choices, s) {
 				return nil
@@ -52,8 +57,33 @@ func StringChoiceOrNumber(choices []string) *choiceValue {
 			}
 			return fmt.Errorf("must be one of %v", choices)
 		},
+		convert: func(s string) (string, error) { return s, nil },
+		toString: func(s string) string { return s },
+		valueType: "string",
 	}
 }
+
+func NumberChoice(choices []int) *choiceValue[int] {
+	return &choiceValue[int]{
+		validate: func(s int) error {
+			if slices.Contains(choices, s) {
+				return nil
+			}
+			return fmt.Errorf("must be one of %v", choices)
+		},
+		convert: func(s string) (int, error) { return strconv.Atoi(s) },
+		toString: func(i int) string { return fmt.Sprintf("%d", i) },
+		valueType: "int",
+	}
+}
+
+type VerbosityLevel = int
+
+const (
+	VerbosityLevelLow VerbosityLevel = iota
+	VerbosityLevelDefault
+	VerbosityLevelHigh
+)
 
 func init() {
 	// Users
@@ -72,12 +102,22 @@ func init() {
 	// Sprint
 	TaskCmd.Flags().Var(StringChoiceOrNumber([]string{
 		"default", "all", "backlog", "current",
-	}), "sprint", "sprint to search tasks in, by default ingnores backlog [all, backlog, current, <ID>]")
+	}), "sprint", "sprint to search tasks in, by default ingnores backlog [all, default, backlog, current, <ID>]")
 
 	// Limits
 	TaskCmd.Flags().Bool("all", false, "fetch all tasks")
 	TaskCmd.Flags().IntP("limit", "l", 50, "limit the number of tasks to fetch")
 	TaskCmd.MarkFlagsMutuallyExclusive("all", "limit")
+
+	// Output
+	TaskCmd.Flags().VarP(
+		NumberChoice(
+			[]int{ VerbosityLevelLow, VerbosityLevelDefault, VerbosityLevelHigh },
+		),
+		"verbosity",
+		"v",
+		"increase or decrease amount of output fields, defaults to 1 [0, 1, 2]",
+	)
 
 	// Export
 	TaskCmd.Flags().StringP("outfile", "o", "", "export result as csv")
@@ -257,6 +297,12 @@ var TaskCmd = &cobra.Command{
 			return err
 		}
 
+		// Verbosity Flag
+		verbosity, err := cmd.Flags().GetInt("verbosity")
+		if err != nil {
+			return err
+		}
+
 		// Setup table
 		var (
 			keyId          = "id"
@@ -271,12 +317,12 @@ var TaskCmd = &cobra.Command{
 			keyCreatedTime = "created_time"
 		)
 		columns := []ui.TableColumn{
-			ui.NewTableColumn(keyId, "ID", false).WithAlignment(ui.TableRight),
+			ui.NewTableColumn(keyId, "ID", verbosity >= VerbosityLevelHigh).WithAlignment(ui.TableRight),
 			ui.NewTableColumn(keyStoryId, "Story ID", true),
-			ui.NewTableColumn(keyProject, "Project", true),
-			ui.NewTableColumn(keyName, "Name", true).WithMaxWidth(40),
+			ui.NewTableColumn(keyProject, "Project", verbosity >= VerbosityLevelDefault),
+			ui.NewTableColumn(keyName, "Name", verbosity >= VerbosityLevelDefault).WithMaxWidth(40),
 			ui.NewTableColumn(keyAssignee, "Assignee", true),
-			ui.NewTableColumn(keyReviewer, "Reviewer", true),
+			ui.NewTableColumn(keyReviewer, "Reviewer", verbosity >= VerbosityLevelDefault),
 			ui.NewTableColumn(keyStatus, "Status", true).WithValueFunc(
 				func(value string) string {
 					if config.UseEmotes() {
@@ -289,7 +335,7 @@ var TaskCmd = &cobra.Command{
 				},
 			),
 			ui.NewTableColumn(keyEstimate, "Estimate", true).WithAlignment(ui.TableRight),
-			ui.NewTableColumn(keyPriority, "Priority", true).WithStyleFunc(
+			ui.NewTableColumn(keyPriority, "Priority", verbosity >= VerbosityLevelDefault).WithStyleFunc(
 				func(style lipgloss.Style, value string) lipgloss.Style {
 					switch value {
 					case "High":
@@ -302,7 +348,7 @@ var TaskCmd = &cobra.Command{
 					return style
 				},
 			),
-			ui.NewTableColumn(keyCreatedTime, "Created", true),
+			ui.NewTableColumn(keyCreatedTime, "Created", verbosity >= VerbosityLevelHigh),
 		}
 
 		timeFormat := config.DatetimeFormat()
@@ -311,7 +357,7 @@ var TaskCmd = &cobra.Command{
 		rows := make([]ui.TableRow, 0, len(tasks))
 		for _, task := range tasks {
 			project := ""
-			if (len(task.ProjectID) > 0) {
+			if len(task.ProjectID) > 0 {
 				project = projectsMap[task.ProjectID[0]]
 			}
 			rows = append(rows, ui.TableRow{

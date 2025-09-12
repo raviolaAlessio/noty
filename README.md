@@ -14,9 +14,15 @@ customization can be done.
 
 ## Use
 To get the assigned task of a user, with status Not Started, Progress,
-To Be Tested or Not Done, in the current sprint and export them to a csv use.
+To Be Tested or Not Done, in the current sprint and export them to a csv use:
 ```
-go run . task -a <assignee_name> -s NS,P,TBT,ND --sprint current --outfile out.csv
+noty task -a <assignee_name> -s NS,P,TBT,ND --sprint current --outfile out.csv
 ```
 
-Other flags are available.
+To get the assigned tasks assigned to a given user, with status Done or Not Done
+in the 73rd sprint use:
+```
+noty task -a <assignee_name> -s NS,P,TBT,ND --sprint 73
+```
+
+Other flags are available, run `noty -h` or `noty task -h` for more.

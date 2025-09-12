@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -40,10 +41,13 @@ func (f *choiceValue) String() string { return f.value }
 
 // StringChoice returns a [choiceValue] that validates the value against a set
 // of choices. Only the last value will be used if multiple values are set.
-func StringChoice(choices []string) *choiceValue {
+func StringChoiceOrNumber(choices []string) *choiceValue {
 	return &choiceValue{
 		validate: func(s string) error {
 			if slices.Contains(choices, s) {
+				return nil
+			}
+			if _, err := strconv.Atoi(s); err == nil {
 				return nil
 			}
 			return fmt.Errorf("must be one of %v", choices)
@@ -66,9 +70,9 @@ func init() {
 	TaskCmd.Flags().StringSliceP("status", "s", []string{}, "filter tasks by status(es) [NS, P, TBT, T, D, ND]")
 
 	// Sprint
-	TaskCmd.Flags().Var(StringChoice([]string{
+	TaskCmd.Flags().Var(StringChoiceOrNumber([]string{
 		"default", "all", "backlog", "current",
-	}), "sprint", "sprint to search taskts in")
+	}), "sprint", "sprint to search tasks in, by default ingnores backlog [all, backlog, current, <ID>]")
 
 	// Limits
 	TaskCmd.Flags().Bool("all", false, "fetch all tasks")
@@ -199,6 +203,24 @@ var TaskCmd = &cobra.Command{
 				config.SprintsDatabaseID(),
 				notion.SprintFilter{
 					Status: &s,
+				},
+			)
+			res, err := sprintFetcher.NextOne()
+			if err != nil {
+				return err
+			}
+			// Set ID as filter
+			filter.Sprint = notion.TaskSprintByID{
+				ID: res.ID,
+			}
+		} else if sprintId, err := strconv.Atoi(sprint); err == nil {
+			// Fetch sprint
+			id := sprintId + 1
+			sprintFetcher := notionClient.NewSprintFetcher(
+				ctx,
+				config.SprintsDatabaseID(),
+				notion.SprintFilter{
+					ID: &id,
 				},
 			)
 			res, err := sprintFetcher.NextOne()

@@ -95,14 +95,14 @@ func (m modelselectinput[T]) View() string {
 }
 
 func (m modelselectinput[T]) Run() (bool, error) {
-    tp := tea.NewProgram(m)
-    if _, err := tp.Run(); err != nil {
-        return m.exit, err
-    }
-    if m.exit {
-        if err := tp.ReleaseTerminal(); err != nil {
-            log.Fatal(err)
-        }
-    }
-    return m.exit, nil
+	tp := tea.NewProgram(m)
+	if _, err := tp.Run(); err != nil {
+		return m.exit, err
+	}
+	if m.exit {
+		if err := tp.ReleaseTerminal(); err != nil {
+			log.Fatal(err)
+		}
+	}
+	return m.exit, nil
 }

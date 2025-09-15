@@ -6,46 +6,46 @@ import (
 	"github.com/jomei/notionapi"
 )
 
-func (self *Client) NewUserFetcher(
+func (client *Client) NewUserFetcher(
 	ctx context.Context,
 	excludeBots bool,
 ) Fetcher[*UserFetcher, NotionUser] {
-	client := &UserFetcher{
-		client: self,
-		limit:  100,
-		cursor: nil,
+	fetcher := &UserFetcher{
+		client:      client,
+		limit:       100,
+		cursor:      nil,
 		excludeBots: excludeBots,
 	}
 	return NewFetcher(
 		ctx,
-		client,
+		fetcher,
 		100,
 	)
 }
 
 type NotionUser struct {
-	ID string
+	ID   string
 	Name string
 }
 
 type UserFetcher struct {
-	client *Client
-	limit  int
-	cursor *string
+	client      *Client
+	limit       int
+	cursor      *string
 	excludeBots bool
 }
 
-func (self *UserFetcher) Fetch(
+func (fetcher *UserFetcher) Fetch(
 	ctx context.Context,
 ) (FetchData[NotionUser], error) {
 	req := notionapi.Pagination{
-		PageSize:    self.limit,
+		PageSize: fetcher.limit,
 	}
-	if self.cursor != nil {
-		req.StartCursor = notionapi.Cursor(*self.cursor)
+	if fetcher.cursor != nil {
+		req.StartCursor = notionapi.Cursor(*fetcher.cursor)
 	}
 
-	res, err := self.client.client.User.List(
+	res, err := fetcher.client.client.User.List(
 		ctx,
 		&req,
 	)
@@ -55,11 +55,11 @@ func (self *UserFetcher) Fetch(
 
 	users := make([]NotionUser, 0)
 	for _, result := range res.Results {
-		if (self.excludeBots && result.Bot != nil) {
+		if fetcher.excludeBots && result.Bot != nil {
 			continue
 		}
 		users = append(users, NotionUser{
-			ID: string(result.ID),
+			ID:   string(result.ID),
 			Name: result.Name,
 		})
 	}
@@ -75,14 +75,14 @@ func (self *UserFetcher) Fetch(
 	return fd, nil
 }
 
-func (self *UserFetcher) RequestLimit() int {
-	return self.limit
+func (fetcher *UserFetcher) RequestLimit() int {
+	return fetcher.limit
 }
 
-func (self *UserFetcher) SetRequestLimit(limit int) {
-	self.limit = limit
+func (fetcher *UserFetcher) SetRequestLimit(limit int) {
+	fetcher.limit = limit
 }
 
-func (self *UserFetcher) SetNextToken(cursor *string) {
-	self.cursor = cursor
+func (fetcher *UserFetcher) SetNextToken(cursor *string) {
+	fetcher.cursor = cursor
 }

@@ -8,7 +8,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-
 type textinputmodel struct {
 	textInput textinput.Model
 	err       error

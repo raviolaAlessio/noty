@@ -44,8 +44,8 @@ func StringChoice(choices []string) *choiceValue[string] {
 			}
 			return fmt.Errorf("must be one of %v", choices)
 		},
-		convert: func(s string) (string, error) { return s, nil },
-		toString: func(s string) string { return s },
+		convert:   func(s string) (string, error) { return s, nil },
+		toString:  func(s string) string { return s },
 		valueType: "string",
 	}
 }
@@ -61,8 +61,8 @@ func StringChoiceOrNumber(choices []string) *choiceValue[string] {
 			}
 			return fmt.Errorf("must be one of %v", choices)
 		},
-		convert: func(s string) (string, error) { return s, nil },
-		toString: func(s string) string { return s },
+		convert:   func(s string) (string, error) { return s, nil },
+		toString:  func(s string) string { return s },
 		valueType: "string",
 	}
 }
@@ -75,8 +75,8 @@ func NumberChoice(choices []int) *choiceValue[int] {
 			}
 			return fmt.Errorf("must be one of %v", choices)
 		},
-		convert: func(s string) (int, error) { return strconv.Atoi(s) },
-		toString: func(i int) string { return fmt.Sprintf("%d", i) },
+		convert:   func(s string) (int, error) { return strconv.Atoi(s) },
+		toString:  func(i int) string { return fmt.Sprintf("%d", i) },
 		valueType: "int",
 	}
 }

@@ -40,7 +40,7 @@ func NewTableColumn(key string, title string, active bool) TableColumn {
 		Key:       key,
 		Title:     title,
 		Active:    active,
-		MaxWidth: -1,
+		MaxWidth:  -1,
 		Alignment: TableLeft,
 		StyleFunc: func(style lipgloss.Style, value string) lipgloss.Style {
 			return style
@@ -113,7 +113,7 @@ func (t *Table) getRowMatrix() [][]string {
 				value = t.emptyString
 			}
 			if col.MaxWidth > 0 && col.MaxWidth < len(value) {
-				value = fmt.Sprintf("%s...", value[0:col.MaxWidth - 3])
+				value = fmt.Sprintf("%s...", value[0:col.MaxWidth-3])
 			}
 			row = append(row, value)
 		}
@@ -147,7 +147,7 @@ func (t *Table) Render() string {
 		BorderColumn(false).BorderHeader(false).
 		StyleFunc(func(row int, col int) lipgloss.Style {
 			var sty lipgloss.Style
-			column := t.columns[col + columnOffsets[col]]
+			column := t.columns[col+columnOffsets[col]]
 
 			if row == table.HeaderRow {
 				sty = HeaderStyle

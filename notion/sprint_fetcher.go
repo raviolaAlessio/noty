@@ -11,23 +11,23 @@ type SprintFilter struct {
 	Status *string
 }
 
-func (self *SprintFilter) ToFilter() notionapi.Filter {
+func (sprintFilter *SprintFilter) ToFilter() notionapi.Filter {
 	filter := notionapi.AndCompoundFilter{}
 
-	if self.Status != nil {
+	if sprintFilter.Status != nil {
 		filter = append(filter, notionapi.PropertyFilter{
 			Property: "Sprint status",
 			Status: &notionapi.StatusFilterCondition{
-				Equals: *self.Status,
+				Equals: *sprintFilter.Status,
 			},
 		})
 	}
 
-	if self.ID != nil {
+	if sprintFilter.ID != nil {
 		filter = append(filter, notionapi.PropertyFilter{
 			Property: "Sprint ID",
 			UniqueId: &notionapi.UniqueIdFilterCondition{
-				Equals: self.ID,
+				Equals: sprintFilter.ID,
 			},
 		})
 	}
@@ -35,13 +35,13 @@ func (self *SprintFilter) ToFilter() notionapi.Filter {
 	return filter
 }
 
-func (self *Client) NewSprintFetcher(
+func (client *Client) NewSprintFetcher(
 	ctx context.Context,
 	databaseID string,
 	filter SprintFilter,
 ) Fetcher[*SprintFetcher, Sprint] {
-	client := &SprintFetcher{
-		client:     self,
+	fetcher := &SprintFetcher{
+		client:     client,
 		databaseID: databaseID,
 		filter:     filter,
 		limit:      100,
@@ -49,15 +49,16 @@ func (self *Client) NewSprintFetcher(
 	}
 	return NewFetcher(
 		ctx,
-		client,
+		fetcher,
 		100,
 	)
 }
 
 type Sprint struct {
-	ID     string
-	Name   string
-	Status string
+	ID       string
+	SprintID int
+	Name     string
+	Status   string
 }
 
 type SprintFetcher struct {
@@ -68,20 +69,20 @@ type SprintFetcher struct {
 	cursor     *string
 }
 
-func (self *SprintFetcher) Fetch(
+func (fetcher *SprintFetcher) Fetch(
 	ctx context.Context,
 ) (FetchData[Sprint], error) {
 	req := notionapi.DatabaseQueryRequest{
-		PageSize: self.limit,
-		Filter:   self.filter.ToFilter(),
+		PageSize: fetcher.limit,
+		Filter:   fetcher.filter.ToFilter(),
 	}
-	if self.cursor != nil {
-		req.StartCursor = notionapi.Cursor(*self.cursor)
+	if fetcher.cursor != nil {
+		req.StartCursor = notionapi.Cursor(*fetcher.cursor)
 	}
 
-	res, err := self.client.client.Database.Query(
+	res, err := fetcher.client.client.Database.Query(
 		ctx,
-		notionapi.DatabaseID(self.databaseID),
+		notionapi.DatabaseID(fetcher.databaseID),
 		&req,
 	)
 	if err != nil {
@@ -91,9 +92,10 @@ func (self *SprintFetcher) Fetch(
 	sprints := make([]Sprint, 0)
 	for _, result := range res.Results {
 		sprints = append(sprints, Sprint{
-			ID:     string(result.ID),
-			Name:   ParseTitle(result.Properties["Sprint name"]),
-			Status: ParseStatus(result.Properties["Sprint status"]),
+			ID:       result.ID.String(),
+			SprintID: ParseUniqueID(result.Properties["Sprint ID"]),
+			Name:     ParseTitle(result.Properties["Sprint name"]),
+			Status:   ParseStatus(result.Properties["Sprint status"]),
 		})
 	}
 
@@ -108,14 +110,14 @@ func (self *SprintFetcher) Fetch(
 	return fd, nil
 }
 
-func (self *SprintFetcher) RequestLimit() int {
-	return self.limit
+func (fetcher *SprintFetcher) RequestLimit() int {
+	return fetcher.limit
 }
 
-func (self *SprintFetcher) SetRequestLimit(limit int) {
-	self.limit = limit
+func (fetcher *SprintFetcher) SetRequestLimit(limit int) {
+	fetcher.limit = limit
 }
 
-func (self *SprintFetcher) SetNextToken(cursor *string) {
-	self.cursor = cursor
+func (fetcher *SprintFetcher) SetNextToken(cursor *string) {
+	fetcher.cursor = cursor
 }

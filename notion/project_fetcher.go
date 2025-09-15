@@ -6,25 +6,25 @@ import (
 	"github.com/jomei/notionapi"
 )
 
-func (self *Client) NewProjectFetcher(
+func (client *Client) NewProjectFetcher(
 	ctx context.Context,
 	databaseID string,
 ) Fetcher[*ProjectFetcher, Project] {
-	client := &ProjectFetcher{
-		client:     self,
+	fetcher := &ProjectFetcher{
+		client:     client,
 		limit:      100,
 		cursor:     nil,
 		databaseID: databaseID,
 	}
 	return NewFetcher(
 		ctx,
-		client,
+		fetcher,
 		100,
 	)
 }
 
 type Project struct {
-	ID    string
+	ID   string
 	Name string
 }
 
@@ -35,19 +35,19 @@ type ProjectFetcher struct {
 	databaseID string
 }
 
-func (self *ProjectFetcher) Fetch(
+func (fetcher *ProjectFetcher) Fetch(
 	ctx context.Context,
 ) (FetchData[Project], error) {
 	req := notionapi.DatabaseQueryRequest{
-		PageSize: self.limit,
+		PageSize: fetcher.limit,
 	}
-	if self.cursor != nil {
-		req.StartCursor = notionapi.Cursor(*self.cursor)
+	if fetcher.cursor != nil {
+		req.StartCursor = notionapi.Cursor(*fetcher.cursor)
 	}
 
-	res, err := self.client.client.Database.Query(
+	res, err := fetcher.client.client.Database.Query(
 		ctx,
-		notionapi.DatabaseID(self.databaseID),
+		notionapi.DatabaseID(fetcher.databaseID),
 		&req,
 	)
 	if err != nil {
@@ -57,7 +57,7 @@ func (self *ProjectFetcher) Fetch(
 	projects := make([]Project, 0)
 	for _, result := range res.Results {
 		projects = append(projects, Project{
-			ID:    string(result.ID),
+			ID:   string(result.ID),
 			Name: ParseTitle(result.Properties["Project name"]),
 		})
 	}
@@ -73,14 +73,14 @@ func (self *ProjectFetcher) Fetch(
 	return fd, nil
 }
 
-func (self *ProjectFetcher) RequestLimit() int {
-	return self.limit
+func (fetcher *ProjectFetcher) RequestLimit() int {
+	return fetcher.limit
 }
 
-func (self *ProjectFetcher) SetRequestLimit(limit int) {
-	self.limit = limit
+func (fetcher *ProjectFetcher) SetRequestLimit(limit int) {
+	fetcher.limit = limit
 }
 
-func (self *ProjectFetcher) SetNextToken(cursor *string) {
-	self.cursor = cursor
+func (fetcher *ProjectFetcher) SetNextToken(cursor *string) {
+	fetcher.cursor = cursor
 }

@@ -9,7 +9,6 @@ func init() {
 }
 
 var ChartCmd = &cobra.Command{
-	Use: "chart",
+	Use:   "chart",
 	Short: "generate useful charts",
 }
-

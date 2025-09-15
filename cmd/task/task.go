@@ -19,23 +19,23 @@ import (
 type VerbosityLevel = int
 
 const (
-	VerbosityLevelLow VerbosityLevel = iota
-	VerbosityLevelDefault
-	VerbosityLevelHigh
+	VerbosityLevelLow     VerbosityLevel = 1
+	VerbosityLevelDefault VerbosityLevel = 2
+	VerbosityLevelHigh    VerbosityLevel = 3
 )
 
 func init() {
 	// Users
-	TaskCmd.Flags().StringP("user", "u", "", "filter tasks by user (assignee or reviewer)")
-	TaskCmd.Flags().StringP("assignee", "a", "", "filter tasks by assignee")
-	TaskCmd.Flags().StringP("reviewer", "r", "", "filter tasks by reviewer")
-	TaskCmd.MarkFlagsMutuallyExclusive("assignee", "user")
-	TaskCmd.MarkFlagsMutuallyExclusive("reviewer", "user")
+	TaskCmd.Flags().StringSliceP("users", "u", []string{}, "filter tasks by users (assignee or reviewer)")
+	TaskCmd.Flags().StringSliceP("assignees", "a", []string{}, "filter tasks by assignees")
+	TaskCmd.Flags().StringSliceP("reviewers", "r", []string{}, "filter tasks by reviewers")
+	TaskCmd.MarkFlagsMutuallyExclusive("assignees", "users")
+	TaskCmd.MarkFlagsMutuallyExclusive("reviewers", "users")
 
 	// Project
 	TaskCmd.Flags().StringSliceP("project", "p", []string{}, "filter by project(s)")
 
-	// Status
+	// Statu VerbosityLevels
 	TaskCmd.Flags().StringSliceP("status", "s", []string{}, "filter tasks by status(es) [NS, P, TBT, T, D, ND]")
 
 	// Sprint
@@ -51,11 +51,11 @@ func init() {
 	// Output
 	TaskCmd.Flags().VarP(
 		flags.NumberChoice(
-			[]int{ VerbosityLevelLow, VerbosityLevelDefault, VerbosityLevelHigh },
+			[]int{VerbosityLevelLow, VerbosityLevelDefault, VerbosityLevelHigh},
 		),
 		"verbosity",
 		"v",
-		"increase or decrease amount of output fields, defaults to 1 [0, 1, 2]",
+		"increase or decrease amount of output fields, defaults to 2 [1, 2, 3]",
 	)
 
 	// Export
@@ -70,7 +70,6 @@ var TaskCmd = &cobra.Command{
 		notionClient := notion.NewClient()
 
 		// Load config
-		usersList := config.Users()
 		projectsList := config.Projects()
 		projectsMap := config.ProjectsMap()
 
@@ -78,44 +77,30 @@ var TaskCmd = &cobra.Command{
 		filter := notion.TaskFilter{}
 
 		// Assignee Flag
-		if assignee, err := cmd.Flags().GetString("assignee"); err != nil {
+		if assignees, err := cmd.Flags().GetStringSlice("assignees"); err != nil {
 			return err
-		} else if assignee != "" {
-			for _, user := range usersList {
-				if strings.Contains(strings.ToLower(user.Name), strings.ToLower(assignee)) {
-					filter.Assignee = &user.ID
-				}
-			}
-			if filter.Assignee == nil {
-				return fmt.Errorf("no user found for assignee '%s'", assignee)
+		} else if len(assignees) != 0 {
+			for _, user := range config.ParseUsers(assignees) {
+				filter.Assignees = append(filter.Assignees, user.ID)
 			}
 		}
 		// Reviewer Flag
-		if reviewer, err := cmd.Flags().GetString("reviewer"); err != nil {
+		if reviewers, err := cmd.Flags().GetStringSlice("reviewers"); err != nil {
 			return err
-		} else if reviewer != "" {
-			for _, user := range usersList {
-				if strings.Contains(strings.ToLower(user.Name), strings.ToLower(reviewer)) {
-					filter.Reviewer = &user.ID
-				}
-			}
-			if filter.Reviewer == nil {
-				return fmt.Errorf("no user found for reviewer '%s'", reviewer)
+		} else if len(reviewers) != 0 {
+			for _, user := range config.ParseUsers(reviewers) {
+				filter.Reviewers = append(filter.Reviewers, user.ID)
 			}
 		}
 		// User Flag
-		if username, err := cmd.Flags().GetString("user"); err != nil {
+		if usernames, err := cmd.Flags().GetStringSlice("users"); err != nil {
 			return err
-		} else if username != "" {
-			for _, user := range usersList {
-				if strings.Contains(strings.ToLower(user.Name), strings.ToLower(username)) {
-					filter.User = &user.ID
-				}
-			}
-			if filter.User == nil {
-				return fmt.Errorf("no user found for '%s'", username)
+		} else if len(usernames) != 0 {
+			for _, user := range config.ParseUsers(usernames) {
+				filter.Users = append(filter.Users, user.ID)
 			}
 		}
+
 		// Projects Flag
 		if projects, err := cmd.Flags().GetStringSlice("project"); err != nil {
 			return err
@@ -221,7 +206,7 @@ var TaskCmd = &cobra.Command{
 		// All / Limit Flag
 		if all, err := cmd.Flags().GetBool("all"); err != nil {
 			return fmt.Errorf("failed request: %s", err)
-		} else if all == false {
+		} else if !all {
 			if limit, err := cmd.Flags().GetInt("limit"); err != nil {
 				return err
 			} else {
@@ -239,6 +224,9 @@ var TaskCmd = &cobra.Command{
 		verbosity, err := cmd.Flags().GetInt("verbosity")
 		if err != nil {
 			return err
+		}
+		if verbosity == 0 {
+			verbosity = VerbosityLevelDefault
 		}
 
 		// Setup table
@@ -300,7 +288,7 @@ var TaskCmd = &cobra.Command{
 			}
 			rows = append(rows, ui.TableRow{
 				keyId:          task.ID,
-				keyStoryId:     task.StoryID,
+				keyStoryId:     fmt.Sprintf("STORY-%d", task.StoryID),
 				keyProject:     project,
 				keyName:        task.Name,
 				keyAssignee:    strings.Join(task.Assignee, ", "),

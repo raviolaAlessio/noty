@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/opts"
@@ -25,13 +24,13 @@ func init() {
 	)
 
 	ChartSprints.Flags().StringSliceP(
-		"users",
-		"u",
+		"assignees",
+		"a",
 		[]string{},
-		"users to add to the chart",
+		"assignees to add to the chart",
 	)
 	ChartSprints.MarkFlagsOneRequired(
-		"users",
+		"assignees",
 	)
 
 	// Output
@@ -51,9 +50,6 @@ var ChartSprints = &cobra.Command{
 		ctx := context.Background()
 		notionClient := notion.NewClient()
 
-		// Load config
-		usersList := config.Users()
-
 		// Selected Y axis value
 		yAxisFlag, err := cmd.Flags().GetString("y-axis")
 		if err != nil {
@@ -63,27 +59,19 @@ var ChartSprints = &cobra.Command{
 		switch yAxisFlag {
 		case "hours":
 			chartYAxis = chartAxisHours
+		default:
+			chartYAxis = chartAxisHours
 		}
 
-		// Selected users
-		usersFlag, err := cmd.Flags().GetStringSlice("users")
+		// Selected assignees
+		assigneesFlag, err := cmd.Flags().GetStringSlice("assignees")
 		if err != nil {
 			return err
 		}
-		var users []notion.NotionUser = make([]notion.NotionUser, 0)
-		for _, uf := range usersFlag {
-			var found *notion.NotionUser;
-			for _, u := range usersList {
-				if strings.Contains(strings.ToLower(u.Name), strings.ToLower(uf)) {
-					found = &u
-					break
-				}
-			}
-			if found == nil {
-				ui.PrintlnfWarn("no user found for '%s'", uf)
-			} else {
-				users = append(users, *found)
-			}
+		assignees := config.ParseUsers(assigneesFlag)
+		assigneesIDs := make([]string, len(assignees))
+		for i, u := range assignees {
+			assigneesIDs[i] = u.ID
 		}
 
 		startSprint := 65
@@ -94,7 +82,7 @@ var ChartSprints = &cobra.Command{
 		}
 
 		// Load sprints
-		var sprints []notion.Sprint = nil
+		sprints := make([]notion.Sprint, 0)
 		_, err = ui.Spin(
 			"Loading sprints",
 			func() error {
@@ -104,68 +92,69 @@ var ChartSprints = &cobra.Command{
 					config.SprintsDatabaseID(),
 					notion.SprintFilter{},
 				)
-				sprints, err = sprintFetcher.All()
+				allSprints, err := sprintFetcher.All()
+				if err != nil {
+					return err
+				}
+				for _, s := range allSprints {
+					if startSprint <= s.SprintID && s.SprintID <= endSprint {
+						sprints = append(sprints, s)
+					}
+				}
 				return nil
 			},
 		)
 		if err != nil {
 			return err
 		}
+		sprintMap := make(map[string]int)
+		sprintIDs := make([]string, len(sprints))
+		for i, s := range sprints {
+			sprintIDs[i] = s.ID
+			sprintMap[s.ID] = i
+		}
 
 		// Find tasks and aggregate
-		var results [][]opts.BarData = make([][]opts.BarData, len(users))
-
-		for userIndex, user := range users {
-			_, err = ui.Spin(
-				fmt.Sprintf("Loading and aggregating tasks for user %s", user.Name),
-				func() error {
-					for sprintIndex := startSprint; sprintIndex <= endSprint; sprintIndex++ {
-						// Select sprint
-						var sprint *notion.Sprint
-						for _, sp := range sprints {
-							if sp.Name == fmt.Sprintf("Sprint %d", sprintIndex+1) {
-								sprint = &sp
-							}
-						}
-						if sprint == nil {
-							return fmt.Errorf("could not find sprint %d", sprintIndex)
-						}
-
-						// Find tasks
-						taskFetcher := notionClient.NewTaskFetcher(
-							ctx,
-							config.TasksDatabaseID(),
-							notion.TaskFilter{
-								User: &user.ID,
-								Sprint: notion.TaskSprintByID{
-									ID: sprint.ID,
-								},
-							},
-						)
-						tasks, err := taskFetcher.All()
-						if err != nil {
-							return err
-						}
-
-						value := 0.0
-
-						switch chartYAxis {
-						case chartAxisHours:
-							for _, task := range tasks {
-								value += task.Estimate
-							}
-						}
-
-						results[userIndex] = append(results[userIndex], opts.BarData{
-							Value: value,
-						})
-					}
-					return nil
-				},
-			)
-			if err != nil {
-				return err
+		results := make(map[string][]float64)
+		for _, u := range assignees {
+			results[u.Name] = make([]float64, len(sprints))
+			for i := range len(sprints) {
+				results[u.Name][i] = 0.0
 			}
+		}
+
+		_, err = ui.Spin(
+			"Loading and aggregating tasks",
+			func() error {
+				// Find tasks
+				taskFetcher := notionClient.NewTaskFetcher(
+					ctx,
+					config.TasksDatabaseID(),
+					notion.TaskFilter{
+						Assignees: assigneesIDs,
+						Sprint: notion.TaskSprintByIDs{
+							SprintIDs: sprintIDs,
+						},
+					},
+				)
+				tasks, err := taskFetcher.All()
+				if err != nil {
+					return err
+				}
+
+				// Aggregate
+				switch chartYAxis {
+				case chartAxisHours:
+					for _, task := range tasks {
+						results[task.Assignee[0]][sprintMap[task.SprintID]] += task.Estimate
+					}
+				}
+
+				return nil
+			},
+		)
+		if err != nil {
+			return err
 		}
 
 		// Create and render chart
@@ -178,11 +167,16 @@ var ChartSprints = &cobra.Command{
 		for i := startSprint; i <= endSprint; i += 1 {
 			xAxis = append(xAxis, fmt.Sprintf("Sprint %d", i))
 		}
+		chart.SetXAxis(xAxis)
 
-		for userIndex, user := range users {
-			chart.
-				SetXAxis(xAxis).
-				AddSeries(user.Name, results[userIndex])
+		for username, datapoints := range results {
+			serie := make([]opts.BarData, len(datapoints))
+			for i, d := range datapoints {
+				serie[i] = opts.BarData{
+					Value: d,
+				}
+			}
+			chart.AddSeries(username, serie)
 		}
 
 		if outfile, err := cmd.Flags().GetString("outfile"); err != nil {

@@ -65,7 +65,6 @@ var ConfigCmd = &cobra.Command{
 		}
 		viper.Set(config.KeySprintsDatabaseID, sprintsDatabaseID)
 
-
 		// Emotes
 		if !redo && !viper.IsSet(config.KeyUseEmotes) {
 			useEmotes := config.UseEmotes()

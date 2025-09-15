@@ -13,7 +13,7 @@ var InfoStyle = lipgloss.NewStyle().Foreground(Fg).Faint(true)
 var WarnStyle = lipgloss.NewStyle().Foreground(Accent).Faint(true)
 
 func PrintlnfError(format string, a ...any) {
-	fmt.Fprint(os.Stderr, ErrorStyle.Render(fmt.Sprintf(format, a...)) + "\n")
+	fmt.Fprint(os.Stderr, ErrorStyle.Render(fmt.Sprintf(format, a...))+"\n")
 }
 
 func PrintfInfo(format string, a ...any) {
@@ -21,11 +21,11 @@ func PrintfInfo(format string, a ...any) {
 }
 
 func PrintlnInfo(string string) {
-	fmt.Fprint(os.Stderr, InfoStyle.Render(string) + "\n")
+	fmt.Fprint(os.Stderr, InfoStyle.Render(string)+"\n")
 }
 
 func PrintlnfInfo(format string, a ...any) {
-	fmt.Fprint(os.Stderr, InfoStyle.Render(fmt.Sprintf(format, a...)) + "\n")
+	fmt.Fprint(os.Stderr, InfoStyle.Render(fmt.Sprintf(format, a...))+"\n")
 }
 
 func PrintfWarn(format string, a ...any) {
@@ -33,13 +33,13 @@ func PrintfWarn(format string, a ...any) {
 }
 
 func PrintlnWarn(string string) {
-	fmt.Fprint(os.Stderr, WarnStyle.Render(string) + "\n")
+	fmt.Fprint(os.Stderr, WarnStyle.Render(string)+"\n")
 }
 
 func PrintlnfWarn(format string, a ...any) {
-	fmt.Fprint(os.Stderr, WarnStyle.Render(fmt.Sprintf(format, a...)) + "\n")
+	fmt.Fprint(os.Stderr, WarnStyle.Render(fmt.Sprintf(format, a...))+"\n")
 }
 
 func PrintlnfSuccess(format string, a ...any) {
-	fmt.Fprint(os.Stderr, SuccessStyle.Render(fmt.Sprintf(format, a...)) + "\n")
+	fmt.Fprint(os.Stderr, SuccessStyle.Render(fmt.Sprintf(format, a...))+"\n")
 }

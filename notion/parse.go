@@ -6,9 +6,9 @@ import (
 	"github.com/jomei/notionapi"
 )
 
-func ParseUniqueID(p notionapi.Property) string {
+func ParseUniqueID(p notionapi.Property) int {
 	title := p.(*notionapi.UniqueIDProperty).UniqueID
-	return title.String()
+	return title.Number
 }
 
 func ParseTitle(p notionapi.Property) string {
@@ -34,7 +34,7 @@ func ParseNumber(p notionapi.Property) float64 {
 }
 
 func ParseStatus(p notionapi.Property) string {
-	return  p.(*notionapi.StatusProperty).Status.Name
+	return p.(*notionapi.StatusProperty).Status.Name
 }
 
 func ParsePeople(p notionapi.Property) []string {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/ravvio/noty/cmd/chart"
 	"github.com/ravvio/noty/cmd/configure"
 	"github.com/ravvio/noty/cmd/task"
 	"github.com/ravvio/noty/config"
@@ -31,9 +32,9 @@ func init() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "noty",
-	Short: "A utility to manage notion tasks",
-	SilenceUsage: true,
+	Use:           "noty",
+	Short:         "A utility to manage notion tasks",
+	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if cmd.CalledAs() == configure.ConfigCmd.Use {

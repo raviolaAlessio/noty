@@ -17,11 +17,12 @@ const (
 )
 
 type TaskSprintFilter interface {
-	ToFilter() notionapi.PropertyFilter
+	ToFilter() notionapi.Filter
 }
 
 type TaskSprintNoBacklog struct{}
-func (self TaskSprintNoBacklog) ToFilter() notionapi.PropertyFilter {
+
+func (sprintFilter TaskSprintNoBacklog) ToFilter() notionapi.Filter {
 	return notionapi.PropertyFilter{
 		Property: "Sprint",
 		Relation: &notionapi.RelationFilterCondition{
@@ -30,8 +31,9 @@ func (self TaskSprintNoBacklog) ToFilter() notionapi.PropertyFilter {
 	}
 }
 
-type TaskSprintOnlyBacklog struct {}
-func (self TaskSprintOnlyBacklog) ToFilter() notionapi.PropertyFilter {
+type TaskSprintOnlyBacklog struct{}
+
+func (sprintFilter TaskSprintOnlyBacklog) ToFilter() notionapi.Filter {
 	return notionapi.PropertyFilter{
 		Property: "Sprint",
 		Relation: &notionapi.RelationFilterCondition{
@@ -43,31 +45,49 @@ func (self TaskSprintOnlyBacklog) ToFilter() notionapi.PropertyFilter {
 type TaskSprintByID struct {
 	ID string
 }
-func (self TaskSprintByID) ToFilter() notionapi.PropertyFilter {
+
+func (sprintFilter TaskSprintByID) ToFilter() notionapi.Filter {
 	return notionapi.PropertyFilter{
 		Property: "Sprint",
 		Relation: &notionapi.RelationFilterCondition{
-			Contains: self.ID,
+			Contains: sprintFilter.ID,
 		},
 	}
 }
 
-type TaskFilter struct {
-	Projects []string
-	User     *string
-	Assignee *string
-	Reviewer *string
-	Statuses []string
-	Sprint   TaskSprintFilter
-	Estimate string
+type TaskSprintByIDs struct {
+	SprintIDs []string
 }
 
-func (self *TaskFilter) ToFilter() notionapi.Filter {
+func (sprintFilter TaskSprintByIDs) ToFilter() notionapi.Filter {
+	filter := notionapi.OrCompoundFilter{}
+	for _, id := range sprintFilter.SprintIDs {
+		filter = append(filter, notionapi.PropertyFilter{
+			Property: "Sprint",
+			Relation: &notionapi.RelationFilterCondition{
+				Contains: id,
+			},
+		})
+	}
+	return filter
+}
+
+type TaskFilter struct {
+	Projects  []string
+	Users     []string
+	Assignees []string
+	Reviewers []string
+	Statuses  []string
+	Sprint    TaskSprintFilter
+	Estimate  string
+}
+
+func (taskFilter *TaskFilter) ToFilter() notionapi.Filter {
 	filter := notionapi.AndCompoundFilter{}
 
-	if len(self.Projects) > 0 {
+	if len(taskFilter.Projects) > 0 {
 		projectsFilter := notionapi.OrCompoundFilter{}
-		for _, project := range self.Projects {
+		for _, project := range taskFilter.Projects {
 			projectsFilter = append(projectsFilter, notionapi.PropertyFilter{
 				Property: "Project",
 				Relation: &notionapi.RelationFilterCondition{
@@ -78,45 +98,63 @@ func (self *TaskFilter) ToFilter() notionapi.Filter {
 		filter = append(filter, projectsFilter)
 	}
 
-	if self.User != nil {
-		userFilter := notionapi.OrCompoundFilter{
-			notionapi.PropertyFilter{
-				Property: "Assignee",
-				People: &notionapi.PeopleFilterCondition{
-					Contains: *self.User,
+	if len(taskFilter.Users) > 0 {
+		userFilter := notionapi.OrCompoundFilter{}
+		for _, u := range taskFilter.Users {
+			userFilter = append(
+				userFilter,
+				notionapi.PropertyFilter{
+					Property: "Assignee",
+					People: &notionapi.PeopleFilterCondition{
+						Contains: u,
+					},
 				},
-			},
-			notionapi.PropertyFilter{
-				Property: "Reviewer",
-				People: &notionapi.PeopleFilterCondition{
-					Contains: *self.User,
+				notionapi.PropertyFilter{
+					Property: "Reviewer",
+					People: &notionapi.PeopleFilterCondition{
+						Contains: u,
+					},
 				},
-			},
+			)
 		}
 		filter = append(filter, userFilter)
 	}
 
-	if self.Assignee != nil && self.User == nil {
-		filter = append(filter, notionapi.PropertyFilter{
-			Property: "Assignee",
-			People: &notionapi.PeopleFilterCondition{
-				Contains: *self.Assignee,
-			},
-		})
+	if len(taskFilter.Assignees) > 0 && len(taskFilter.Users) == 0 {
+		userFilter := notionapi.OrCompoundFilter{}
+		for _, u := range taskFilter.Assignees {
+			userFilter = append(
+				userFilter,
+				notionapi.PropertyFilter{
+					Property: "Assignee",
+					People: &notionapi.PeopleFilterCondition{
+						Contains: u,
+					},
+				},
+			)
+		}
+		filter = append(filter, userFilter)
 	}
 
-	if self.Reviewer != nil && self.User == nil {
-		filter = append(filter, notionapi.PropertyFilter{
-			Property: "Reviewer",
-			People: &notionapi.PeopleFilterCondition{
-				Contains: *self.Reviewer,
-			},
-		})
+	if len(taskFilter.Reviewers) > 0 && len(taskFilter.Users) == 0 {
+		userFilter := notionapi.OrCompoundFilter{}
+		for _, u := range taskFilter.Reviewers {
+			userFilter = append(
+				userFilter,
+				notionapi.PropertyFilter{
+					Property: "Reviewer",
+					People: &notionapi.PeopleFilterCondition{
+						Contains: u,
+					},
+				},
+			)
+		}
+		filter = append(filter, userFilter)
 	}
 
-	if len(self.Statuses) > 0 {
+	if len(taskFilter.Statuses) > 0 {
 		statusFilter := notionapi.OrCompoundFilter{}
-		for _, status := range self.Statuses {
+		for _, status := range taskFilter.Statuses {
 			statusFilter = append(statusFilter, notionapi.PropertyFilter{
 				Property: "Status",
 				Status: &notionapi.StatusFilterCondition{
@@ -127,8 +165,8 @@ func (self *TaskFilter) ToFilter() notionapi.Filter {
 		filter = append(filter, statusFilter)
 	}
 
-	if (self.Sprint != nil) {
-		filter = append(filter, (self.Sprint).ToFilter())
+	if taskFilter.Sprint != nil {
+		filter = append(filter, (taskFilter.Sprint).ToFilter())
 	}
 
 	return filter
@@ -136,7 +174,7 @@ func (self *TaskFilter) ToFilter() notionapi.Filter {
 
 type Task struct {
 	ID        string
-	StoryID   string
+	StoryID   int
 	Name      string
 	Assignee  []string
 	Reviewer  []string
@@ -145,9 +183,10 @@ type Task struct {
 	ProjectID []string
 	Created   time.Time
 	Estimate  float64
+	SprintID  string
 }
 
-func parseTaskPage(p notionapi.Page) Task {
+func parseTaskPage(p notionapi.Page) (Task, error) {
 	return Task{
 		ID:        p.ID.String(),
 		StoryID:   ParseUniqueID(p.Properties["Story ID"]),
@@ -159,16 +198,17 @@ func parseTaskPage(p notionapi.Page) Task {
 		ProjectID: ParseRelation(p.Properties["Project"]),
 		Created:   p.CreatedTime,
 		Estimate:  ParseNumber(p.Properties["estimate hours"]),
-	}
+		SprintID:  ParseRelation(p.Properties["Sprint"])[0],
+	}, nil
 }
 
-func (self *Client) NewTaskFetcher(
+func (client *Client) NewTaskFetcher(
 	ctx context.Context,
 	databaseId string,
 	filter TaskFilter,
 ) Fetcher[*TaskFetcher, Task] {
-	client := &TaskFetcher{
-		client:     self,
+	fetcher := &TaskFetcher{
+		client:     client,
 		databaseId: databaseId,
 		filter:     filter,
 		limit:      100,
@@ -176,7 +216,7 @@ func (self *Client) NewTaskFetcher(
 	}
 	return NewFetcher(
 		ctx,
-		client,
+		fetcher,
 		100,
 	)
 }
@@ -189,20 +229,20 @@ type TaskFetcher struct {
 	cursor     *string
 }
 
-func (self *TaskFetcher) Fetch(
+func (fetcher *TaskFetcher) Fetch(
 	ctx context.Context,
 ) (FetchData[Task], error) {
 	req := &notionapi.DatabaseQueryRequest{
-		Filter:   self.filter.ToFilter(),
-		PageSize: int(self.limit),
+		Filter:   fetcher.filter.ToFilter(),
+		PageSize: int(fetcher.limit),
 	}
-	if self.cursor != nil {
-		req.StartCursor = notionapi.Cursor(*self.cursor)
+	if fetcher.cursor != nil {
+		req.StartCursor = notionapi.Cursor(*fetcher.cursor)
 	}
 
-	res, err := self.client.client.Database.Query(
+	res, err := fetcher.client.client.Database.Query(
 		ctx,
-		notionapi.DatabaseID(self.databaseId),
+		notionapi.DatabaseID(fetcher.databaseId),
 		req,
 	)
 	if err != nil {
@@ -211,7 +251,11 @@ func (self *TaskFetcher) Fetch(
 
 	tasks := make([]Task, 0, len(res.Results))
 	for _, result := range res.Results {
-		tasks = append(tasks, parseTaskPage(result))
+		task, err := parseTaskPage(result)
+		if err != nil {
+			return FetchData[Task]{}, err
+		}
+		tasks = append(tasks, task)
 	}
 
 	fd := FetchData[Task]{
@@ -225,14 +269,14 @@ func (self *TaskFetcher) Fetch(
 	return fd, nil
 }
 
-func (self *TaskFetcher) RequestLimit() int {
-	return self.limit
+func (fetcher *TaskFetcher) RequestLimit() int {
+	return fetcher.limit
 }
 
-func (self *TaskFetcher) SetRequestLimit(limit int) {
-	self.limit = limit
+func (fetcher *TaskFetcher) SetRequestLimit(limit int) {
+	fetcher.limit = limit
 }
 
-func (self *TaskFetcher) SetNextToken(cursor *string) {
-	self.cursor = cursor
+func (fetcher *TaskFetcher) SetNextToken(cursor *string) {
+	fetcher.cursor = cursor
 }

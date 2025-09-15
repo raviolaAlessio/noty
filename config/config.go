@@ -83,7 +83,10 @@ func Save() (string, error) {
 			if err != nil {
 				return "", err
 			}
-			viper.WriteConfigAs(filepath)
+			err = viper.WriteConfigAs(filepath)
+			if err != nil {
+				return "", nil
+			}
 			return filepath, nil
 		} else {
 			return "", err

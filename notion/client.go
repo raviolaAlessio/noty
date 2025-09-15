@@ -20,4 +20,3 @@ func NewClient() *Client {
 		client: client,
 	}
 }
-

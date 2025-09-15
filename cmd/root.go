@@ -6,6 +6,7 @@ import (
 
 	"github.com/ravvio/noty/cmd/configure"
 	"github.com/ravvio/noty/cmd/task"
+	"github.com/ravvio/noty/cmd/chart"
 	"github.com/ravvio/noty/config"
 	"github.com/ravvio/noty/ui"
 	"github.com/spf13/cobra"
@@ -28,6 +29,7 @@ func init() {
 
 	rootCmd.AddCommand(configure.ConfigCmd)
 	rootCmd.AddCommand(task.TaskCmd)
+	rootCmd.AddCommand(chart.ChartCmd)
 }
 
 var rootCmd = &cobra.Command{

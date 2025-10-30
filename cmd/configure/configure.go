@@ -65,6 +65,16 @@ var ConfigCmd = &cobra.Command{
 		}
 		viper.Set(config.KeySprintsDatabaseID, sprintsDatabaseID)
 
+		// Set hours db
+		hoursDatabaseID := config.HoursDatabaseID()
+		if exit, err := ui.NewTextInput(
+			"Hours Database ID",
+			&hoursDatabaseID,
+			hoursDatabaseID,
+		).Run(); err != nil || exit {
+			return err
+		}
+		viper.Set(config.KeyHoursDatabaseID, hoursDatabaseID)
 
 		// Emotes
 		if !redo && !viper.IsSet(config.KeyUseEmotes) {

@@ -19,9 +19,9 @@ import (
 type VerbosityLevel = int
 
 const (
-	VerbosityLevelLow     VerbosityLevel = 1
-	VerbosityLevelDefault VerbosityLevel = 2
-	VerbosityLevelHigh    VerbosityLevel = 3
+	verbosityLevelLow     VerbosityLevel = 0
+	verbosityLevelDefault VerbosityLevel = 1
+	verbosityLevelHigh    VerbosityLevel = 2
 )
 
 func init() {
@@ -53,12 +53,12 @@ func init() {
 	// Output
 	TaskCmd.Flags().VarP(
 		flags.NumberChoice(
-			[]int{ VerbosityLevelLow, VerbosityLevelDefault, VerbosityLevelHigh },
-			VerbosityLevelDefault,
+			[]int{ verbosityLevelLow, verbosityLevelDefault, verbosityLevelHigh },
+			verbosityLevelDefault,
 		),
 		"verbosity",
 		"v",
-		"increase or decrease amount of output fields, defaults to 2 [1, 2, 3]",
+		"increase or decrease amount of output fields, defaults to 1 [0, 1, 2]",
 	)
 
 	// Export
@@ -229,7 +229,7 @@ var TaskCmd = &cobra.Command{
 			return err
 		}
 		if verbosity == 0 {
-			verbosity = VerbosityLevelDefault
+			verbosity = verbosityLevelDefault
 		}
 
 		// Setup table
@@ -246,12 +246,12 @@ var TaskCmd = &cobra.Command{
 			keyCreatedTime = "created_time"
 		)
 		columns := []ui.TableColumn{
-			ui.NewTableColumn(keyId, "ID", verbosity >= VerbosityLevelHigh).WithAlignment(ui.TableRight),
+			ui.NewTableColumn(keyId, "ID", verbosity >= verbosityLevelHigh).WithAlignment(ui.TableRight),
 			ui.NewTableColumn(keyStoryId, "Story ID", true),
-			ui.NewTableColumn(keyProject, "Project", verbosity >= VerbosityLevelDefault),
-			ui.NewTableColumn(keyName, "Name", verbosity >= VerbosityLevelDefault).WithMaxWidth(40),
+			ui.NewTableColumn(keyProject, "Project", verbosity >= verbosityLevelDefault),
+			ui.NewTableColumn(keyName, "Name", verbosity >= verbosityLevelDefault).WithMaxWidth(40),
 			ui.NewTableColumn(keyAssignee, "Assignee", true),
-			ui.NewTableColumn(keyReviewer, "Reviewer", verbosity >= VerbosityLevelDefault),
+			ui.NewTableColumn(keyReviewer, "Reviewer", verbosity >= verbosityLevelDefault),
 			ui.NewTableColumn(keyStatus, "Status", true).WithValueFunc(
 				func(value string) string {
 					if config.UseEmotes() {
@@ -264,7 +264,7 @@ var TaskCmd = &cobra.Command{
 				},
 			),
 			ui.NewTableColumn(keyEstimate, "Estimate", true).WithAlignment(ui.TableRight),
-			ui.NewTableColumn(keyPriority, "Priority", verbosity >= VerbosityLevelDefault).WithStyleFunc(
+			ui.NewTableColumn(keyPriority, "Priority", verbosity >= verbosityLevelDefault).WithStyleFunc(
 				func(style lipgloss.Style, value string) lipgloss.Style {
 					switch value {
 					case "High":
@@ -277,7 +277,7 @@ var TaskCmd = &cobra.Command{
 					return style
 				},
 			),
-			ui.NewTableColumn(keyCreatedTime, "Created", verbosity >= VerbosityLevelHigh),
+			ui.NewTableColumn(keyCreatedTime, "Created", verbosity >= verbosityLevelHigh),
 		}
 
 		timeFormat := config.DatetimeFormat()

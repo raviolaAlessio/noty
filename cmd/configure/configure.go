@@ -68,7 +68,7 @@ var ConfigCmd = &cobra.Command{
 		// Set hours db
 		hoursDatabaseID := config.HoursDatabaseID()
 		if exit, err := ui.NewTextInput(
-			"Hours Database ID",
+			"Hours Entries Database ID",
 			&hoursDatabaseID,
 			hoursDatabaseID,
 		).Run(); err != nil || exit {

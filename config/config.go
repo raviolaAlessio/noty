@@ -14,6 +14,7 @@ const (
 	KeyTasksDatabaseID    = "tasks_database_id"
 	KeyProjectsDatabaseID = "projects_database_id"
 	KeySprintsDatabaseID  = "sprints_database_id"
+	KeyHoursDatabaseID    = "hours_database_id"
 	KeyUsers              = "users"
 	KeyProjects           = "projects"
 	KeyUseEmotes          = "use_emotes"
@@ -33,6 +34,7 @@ func Init() error {
 	viper.SetDefault(KeyTasksDatabaseID, "")
 	viper.SetDefault(KeyProjectsDatabaseID, "")
 	viper.SetDefault(KeySprintsDatabaseID, "")
+	viper.SetDefault(KeyHoursDatabaseID, "")
 
 	viper.SetDefault(KeyUseEmotes, true)
 	viper.SetDefault(KeyStatusEmotes, map[string]string{
@@ -100,6 +102,10 @@ func ProjectsDatabaseID() string {
 
 func SprintsDatabaseID() string {
 	return viper.GetString(KeySprintsDatabaseID)
+}
+
+func HoursDatabaseID() string {
+	return viper.GetString(KeyHoursDatabaseID)
 }
 
 func UseEmotes() bool {

@@ -8,11 +8,11 @@ import (
 
 // choiceValue implements the [pflag.Value] interface.
 type choiceValue[T any] struct {
-	value        T
-	validate     func(T) error
-	convert      func(string) (T, error)
-	toString     func(T) string
-	valueType    string
+	value     T
+	validate  func(T) error
+	convert   func(string) (T, error)
+	toString  func(T) string
+	valueType string
 }
 
 // Set sets the value of the choice.

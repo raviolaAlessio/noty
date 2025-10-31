@@ -32,7 +32,7 @@ func init() {
 	// Date
 	HoursCmd.Flags().VarP(
 		flags.StringChoice(
-			[]string{ "all", "today", "yesterday" },
+			[]string{"all", "today", "yesterday"},
 			"all",
 		),
 		"date",

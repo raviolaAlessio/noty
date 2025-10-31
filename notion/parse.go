@@ -62,7 +62,7 @@ func ParseRelation(p notionapi.Property) []string {
 
 type DateRange struct {
 	Start time.Time
-	End time.Time
+	End   time.Time
 }
 
 func ParseDate(p notionapi.Property) DateRange {
@@ -83,7 +83,7 @@ func ParseDate(p notionapi.Property) DateRange {
 
 	return DateRange{
 		Start: startDate,
-		End: endDate,
+		End:   endDate,
 	}
 }
 

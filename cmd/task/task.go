@@ -40,7 +40,7 @@ func init() {
 
 	// Sprint
 	TaskCmd.Flags().Var(
-		flags.StringChoiceOrInt([]string{ "default", "all", "backlog", "current" }, "default"),
+		flags.StringChoiceOrInt([]string{"default", "all", "backlog", "current"}, "default"),
 		"sprint",
 		"sprint to search tasks in, by default ingnores backlog [all, default, backlog, current, <ID>]",
 	)
@@ -53,7 +53,7 @@ func init() {
 	// Output
 	TaskCmd.Flags().VarP(
 		flags.NumberChoice(
-			[]int{ verbosityLevelLow, verbosityLevelDefault, verbosityLevelHigh },
+			[]int{verbosityLevelLow, verbosityLevelDefault, verbosityLevelHigh},
 			verbosityLevelDefault,
 		),
 		"verbosity",

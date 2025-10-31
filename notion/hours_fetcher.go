@@ -27,7 +27,7 @@ func (dateFilter HoursDateToday) ToFilter() notionapi.Filter {
 type HoursDateYesterday struct{}
 
 func (dateFilter HoursDateYesterday) ToFilter() notionapi.Filter {
-	now := notionapi.Date(time.Now().Add(- 24 * time.Hour).Round(24 * time.Hour))
+	now := notionapi.Date(time.Now().Add(-24 * time.Hour).Round(24 * time.Hour))
 
 	return notionapi.PropertyFilter{
 		Property: "data",

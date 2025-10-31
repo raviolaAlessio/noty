@@ -29,6 +29,17 @@ func init() {
 	// Project
 	HoursCmd.Flags().StringSliceP("project", "p", []string{}, "filter by project(s)")
 
+	// Date
+	HoursCmd.Flags().VarP(
+		flags.StringChoice(
+			[]string{ "all", "today", "yesterday" },
+			"all",
+		),
+		"date",
+		"d",
+		"filter entries by date, defaults to all [all, today, yesterday]",
+	)
+
 	// Limits
 	HoursCmd.Flags().Bool("all", false, "fetch all tasks")
 	HoursCmd.Flags().IntP("limit", "l", 50, "limit the number of tasks to fetch")
@@ -104,6 +115,15 @@ var HoursCmd = &cobra.Command{
 			}
 		}
 
+		// Date Flag
+		if date, err := cmd.Flags().GetString("date"); err != nil {
+			return err
+		} else if date == "today" {
+			filter.Date = notion.HoursDateToday{}
+		} else if date == "yesterday" {
+			filter.Date = notion.HoursDateYesterday{}
+		}
+
 		// Create fetcher
 		hoursFetcher := notionClient.NewHoursFetcher(
 			ctx,
@@ -141,7 +161,7 @@ var HoursCmd = &cobra.Command{
 			keyCreatedTime = "created_time"
 		)
 		columns := []ui.TableColumn{
-			ui.NewTableColumn(keyId, "ID", verbosity >= VerbosityLevelHigh).WithAlignment(ui.TableRight),
+			ui.NewTableColumn(keyId, "ID", verbosity >= VerbosityLevelHigh),
 			ui.NewTableColumn(keyDate, "Date", true),
 			ui.NewTableColumn(keyUser, "User", true),
 			ui.NewTableColumn(keyProject, "Project", verbosity >= VerbosityLevelDefault),
@@ -150,6 +170,7 @@ var HoursCmd = &cobra.Command{
 		}
 
 		timeFormat := config.DatetimeFormat()
+		dateFormat := config.DateFormat()
 
 		// Add rows
 		rows := make([]ui.TableRow, 0, len(hoursEntries))
@@ -160,7 +181,7 @@ var HoursCmd = &cobra.Command{
 			}
 			rows = append(rows, ui.TableRow{
 				keyId:          entry.ID,
-				keyDate:        entry.Date,
+				keyDate:        entry.Date.Format(dateFormat),
 				keyProject:     project,
 				keyUser:        strings.Join(entry.User, ", "),
 				keyHours:       fmt.Sprintf("%.1f h", entry.Hours),

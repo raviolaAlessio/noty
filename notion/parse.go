@@ -2,6 +2,7 @@ package notion
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/jomei/notionapi"
 )
@@ -59,14 +60,34 @@ func ParseRelation(p notionapi.Property) []string {
 	return res
 }
 
-func ParseDate(p notionapi.Property) string {
-	start := p.(*notionapi.DateProperty).Date.Start
-	end := p.(*notionapi.DateProperty).Date.End
-	if start != nil && end != nil {
-		return fmt.Sprintf("%s - %s", start.String(), end.String())
-	} else if start != nil {
-		return start.String()
-	} else {
-		return end.String()
+type DateRange struct {
+	Start time.Time
+	End time.Time
+}
+
+func ParseDate(p notionapi.Property) DateRange {
+	startDate, err := time.Parse(
+		time.RFC3339,
+		p.(*notionapi.DateProperty).Date.Start.String(),
+	)
+	if err != nil {
+		startDate = time.Now()
 	}
+	endDate, err := time.Parse(
+		time.RFC3339,
+		p.(*notionapi.DateProperty).Date.Start.String(),
+	)
+	if err != nil {
+		startDate = time.Now()
+	}
+
+	return DateRange{
+		Start: startDate,
+		End: endDate,
+	}
+}
+
+func ParseRollup(p notionapi.Property) string {
+	value := p.(*notionapi.RollupProperty).Rollup.Number
+	return fmt.Sprintf("Rollup %f", value)
 }

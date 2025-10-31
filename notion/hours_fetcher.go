@@ -7,9 +7,40 @@ import (
 	"github.com/jomei/notionapi"
 )
 
+type HoursDateFilter interface {
+	ToFilter() notionapi.Filter
+}
+
+type HoursDateToday struct{}
+
+func (dateFilter HoursDateToday) ToFilter() notionapi.Filter {
+	now := notionapi.Date(time.Now().Round(24 * time.Hour))
+
+	return notionapi.PropertyFilter{
+		Property: "data",
+		Date: &notionapi.DateFilterCondition{
+			Equals: &now,
+		},
+	}
+}
+
+type HoursDateYesterday struct{}
+
+func (dateFilter HoursDateYesterday) ToFilter() notionapi.Filter {
+	now := notionapi.Date(time.Now().Add(- 24 * time.Hour).Round(24 * time.Hour))
+
+	return notionapi.PropertyFilter{
+		Property: "data",
+		Date: &notionapi.DateFilterCondition{
+			Equals: &now,
+		},
+	}
+}
+
 type HoursFilter struct {
 	Projects []string
 	Users    []string
+	Date     HoursDateFilter
 }
 
 func (hoursFilter *HoursFilter) ToFilter() notionapi.Filter {
@@ -44,6 +75,10 @@ func (hoursFilter *HoursFilter) ToFilter() notionapi.Filter {
 		filter = append(filter, userFilter)
 	}
 
+	if hoursFilter.Date != nil {
+		filter = append(filter, hoursFilter.Date.ToFilter())
+	}
+
 	return filter
 }
 
@@ -52,24 +87,27 @@ type HoursEntry struct {
 	Created      time.Time
 	User         []string
 	ProjectID    []string
-	TaskID       string
-	CommissionID string
-	Date         string
+	TaskID       *string
+	CommissionID []string
+	Date         time.Time
 	Hours        float64
-	SprintID     string
 }
 
 func parseHoursEntryPage(p notionapi.Page) (HoursEntry, error) {
+	var taskId *string
+	if teaskRel := ParseRelation(p.Properties["task"]); len(teaskRel) > 0 {
+		taskId = &teaskRel[0]
+	}
+
 	return HoursEntry{
 		ID:           p.ID.String(),
 		Created:      p.CreatedTime,
 		User:         ParsePeople(p.Properties["codeployer"]),
 		ProjectID:    ParseRelation(p.Properties["progetto"]),
-		TaskID:       ParseRelation(p.Properties["task"])[0],
-		CommissionID: ParseRelation(p.Properties["commessa"])[0],
-		Date:         ParseDate(p.Properties["data"]),
+		TaskID:       taskId,
+		CommissionID: ParseRelation(p.Properties["commessa"]),
+		Date:         ParseDate(p.Properties["data"]).Start,
 		Hours:        ParseNumber(p.Properties["ore"]),
-		SprintID:     ParseRelation(p.Properties["Rollup"])[0],
 	}, nil
 }
 

@@ -20,6 +20,7 @@ const (
 	KeyUseEmotes          = "use_emotes"
 	KeyStatusEmotes       = "status_emotes"
 	KeyDatetimeFormat     = "datetime_format"
+	KeyDateFormat     = "datetime_format"
 )
 
 func ConfigDir() (string, error) {
@@ -47,6 +48,7 @@ func Init() error {
 	})
 
 	viper.SetDefault(KeyDatetimeFormat, "2006-01-02 15:04")
+	viper.SetDefault(KeyDateFormat, "2006-01-02")
 
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
@@ -125,6 +127,10 @@ func StatusEmote(value string) string {
 
 func DatetimeFormat() string {
 	return viper.GetString(KeyDatetimeFormat)
+}
+
+func DateFormat() string {
+	return viper.GetString(KeyDateFormat)
 }
 
 func Users() []notion.NotionUser {

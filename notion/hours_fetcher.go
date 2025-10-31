@@ -85,7 +85,7 @@ func (hoursFilter *HoursFilter) ToFilter() notionapi.Filter {
 type HoursEntry struct {
 	ID           string
 	Created      time.Time
-	User         []string
+	User         string
 	ProjectID    []string
 	TaskID       *string
 	CommissionID []string
@@ -102,7 +102,7 @@ func parseHoursEntryPage(p notionapi.Page) (HoursEntry, error) {
 	return HoursEntry{
 		ID:           p.ID.String(),
 		Created:      p.CreatedTime,
-		User:         ParsePeople(p.Properties["codeployer"]),
+		User:         ParsePeople(p.Properties["codeployer"])[0],
 		ProjectID:    ParseRelation(p.Properties["progetto"]),
 		TaskID:       taskId,
 		CommissionID: ParseRelation(p.Properties["commessa"]),

@@ -22,6 +22,11 @@ const (
 	VerbosityLevelHigh    VerbosityLevel = 2
 )
 
+type GroupingValues struct {
+	Entries int
+	Hours   float64
+}
+
 func init() {
 	// Users
 	HoursCmd.Flags().StringSliceP("users", "u", []string{}, "filter tasks by users (assignee or reviewer)")
@@ -38,6 +43,17 @@ func init() {
 		"date",
 		"d",
 		"filter entries by date, defaults to all [all, today, yesterday]",
+	)
+
+	// Grouping
+	HoursCmd.Flags().VarP(
+		flags.StringChoice(
+			[]string{"user"},
+			"",
+		),
+		"group-by",
+		"g",
+		"define if and how to group data [user]",
 	)
 
 	// Limits
@@ -159,6 +175,7 @@ var HoursCmd = &cobra.Command{
 			// keyCommission
 			keyHours       = "hours"
 			keyCreatedTime = "created_time"
+			keyEntries     = "entries"
 		)
 		columns := []ui.TableColumn{
 			ui.NewTableColumn(keyId, "ID", verbosity >= VerbosityLevelHigh),
@@ -183,7 +200,7 @@ var HoursCmd = &cobra.Command{
 				keyId:          entry.ID,
 				keyDate:        entry.Date.Format(dateFormat),
 				keyProject:     project,
-				keyUser:        strings.Join(entry.User, ", "),
+				keyUser:        entry.User,
 				keyHours:       fmt.Sprintf("%.1f h", entry.Hours),
 				keyCreatedTime: entry.Created.Local().Format(timeFormat),
 			})
@@ -211,6 +228,47 @@ var HoursCmd = &cobra.Command{
 				ui.PrintlnfWarn("Could not export to CSV: %s", err.Error())
 			} else {
 				ui.PrintlnfInfo("Data exported to CSV file %s", abs)
+			}
+		}
+
+		// Grouping
+		if grouping, err := cmd.Flags().GetString("group-by"); err != nil {
+			return err
+		} else {
+			if grouping == "user" {
+				columns := []ui.TableColumn{
+					ui.NewTableColumn(keyUser, "User", true),
+					ui.NewTableColumn(keyEntries, "Entries", true).WithAlignment(ui.TableRight),
+					ui.NewTableColumn(keyHours, "Hours", true).WithAlignment(ui.TableRight),
+				}
+				// Add rows
+				groupingMap := make(map[string]GroupingValues, 0)
+				for _, entry := range hoursEntries {
+					if r, ok := groupingMap[entry.User]; ok {
+						groupingMap[entry.User] = GroupingValues{
+							Hours:   r.Hours + entry.Hours,
+							Entries: r.Entries + 1,
+						}
+					} else {
+						groupingMap[entry.User] = GroupingValues{
+							Hours:   entry.Hours,
+							Entries: 1,
+						}
+					}
+				}
+				rows := make([]ui.TableRow, 0, len(groupingMap))
+				for user, values := range groupingMap {
+					rows = append(rows, ui.TableRow{
+						keyUser:    user,
+						keyEntries: fmt.Sprintf("%d", values.Entries),
+						keyHours:   fmt.Sprintf("%.1f h", values.Hours),
+					})
+				}
+
+				// Render result
+				table := ui.NewTable(columns).WithRows(rows)
+				fmt.Println()
+				fmt.Println(table.Render())
 			}
 		}
 

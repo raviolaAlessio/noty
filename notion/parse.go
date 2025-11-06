@@ -47,6 +47,14 @@ func ParsePeople(p notionapi.Property) []string {
 	return result
 }
 
+func ParseUserName(p notionapi.Property, fallback string) string {
+	users := p.(*notionapi.PeopleProperty).People
+	if len(users) == 0 {
+		return fallback
+	}
+	return users[0].Name
+}
+
 func ParseSelect(p notionapi.Property) string {
 	return p.(*notionapi.SelectProperty).Select.Name
 }

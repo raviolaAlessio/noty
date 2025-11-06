@@ -20,7 +20,7 @@ const (
 	KeyUseEmotes          = "use_emotes"
 	KeyStatusEmotes       = "status_emotes"
 	KeyDatetimeFormat     = "datetime_format"
-	KeyDateFormat         = "datetime_format"
+	KeyDateFormat         = "date_format"
 )
 
 func ConfigDir() (string, error) {

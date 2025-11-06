@@ -176,8 +176,8 @@ type Task struct {
 	ID        string
 	StoryID   int
 	Name      string
-	Assignee  []string
-	Reviewer  []string
+	Assignee  string
+	Reviewer  string
 	Status    string
 	Priority  string
 	ProjectID []string
@@ -192,8 +192,8 @@ func parseTaskPage(p notionapi.Page) (Task, error) {
 		StoryID:   ParseUniqueID(p.Properties["Story ID"]),
 		Name:      ParseTitle(p.Properties["Task name"]),
 		Status:    ParseStatus(p.Properties["Status"]),
-		Assignee:  ParsePeople(p.Properties["Assignee"]),
-		Reviewer:  ParsePeople(p.Properties["Reviewer"]),
+		Assignee:  ParseUserName(p.Properties["Assignee"], "-"),
+		Reviewer:  ParseUserName(p.Properties["Reviewer"], "-"),
 		Priority:  ParseSelect(p.Properties["Priority"]),
 		ProjectID: ParseRelation(p.Properties["Project"]),
 		Created:   p.CreatedTime,

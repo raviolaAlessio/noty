@@ -113,7 +113,7 @@ func (t *Table) getRowMatrix() [][]string {
 				value = t.emptyString
 			}
 			if col.MaxWidth > 0 && col.MaxWidth < len(value) {
-				value = fmt.Sprintf("%s...", value[0:col.MaxWidth-3])
+				value = fmt.Sprintf("%.*s...", col.MaxWidth-3, value)
 			}
 			row = append(row, value)
 		}
@@ -142,8 +142,8 @@ func (t *Table) Render() string {
 	lt := table.New().
 		Headers(headers...).
 		Rows(rows...).
-		Border(lipgloss.NormalBorder()).
-		BorderLeft(false).BorderRight(false).BorderTop(false).BorderBottom(false).
+		Border(lipgloss.HiddenBorder()).
+		BorderLeft(false).BorderRight(false).BorderTop(true).BorderBottom(false).
 		BorderColumn(false).BorderHeader(false).
 		StyleFunc(func(row int, col int) lipgloss.Style {
 			var sty lipgloss.Style

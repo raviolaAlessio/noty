@@ -24,6 +24,28 @@ const (
 	verbosityLevelHigh    VerbosityLevel = 2
 )
 
+type TaskGroupingValues struct {
+	Count int
+	Hours float64
+}
+
+// Table column names
+var (
+	keyId          = "id"
+	keyStoryId     = "storyId"
+	keyProject     = "project"
+	keyName        = "name"
+	keyStatus      = "status"
+	keyAssignee    = "assignee"
+	keyReviewer    = "reviewer"
+	keyPriority    = "priority"
+	keyEstimate    = "estimate"
+	keyCreatedTime = "created_time"
+	keyUser        = "user"
+	keyCount       = "count"
+	keyHours       = "hours"
+)
+
 func init() {
 	// Users
 	TaskCmd.Flags().StringSliceP("users", "u", []string{}, "filter tasks by users (assignee or reviewer)")
@@ -43,6 +65,17 @@ func init() {
 		flags.StringChoiceOrInt([]string{"default", "all", "backlog", "current"}, "default"),
 		"sprint",
 		"sprint to search tasks in, by default ingnores backlog [all, default, backlog, current, <ID>]",
+	)
+
+	// Grouping
+	TaskCmd.Flags().VarP(
+		flags.StringChoice(
+			[]string{"user"},
+			"",
+		),
+		"group-by",
+		"g",
+		"define if and how to group data [user]",
 	)
 
 	// Limits
@@ -233,18 +266,6 @@ var TaskCmd = &cobra.Command{
 		}
 
 		// Setup table
-		var (
-			keyId          = "id"
-			keyStoryId     = "storyId"
-			keyProject     = "project"
-			keyName        = "name"
-			keyStatus      = "status"
-			keyAssignee    = "assignee"
-			keyReviewer    = "reviewer"
-			keyPriority    = "priority"
-			keyEstimate    = "estimate"
-			keyCreatedTime = "created_time"
-		)
 		columns := []ui.TableColumn{
 			ui.NewTableColumn(keyId, "ID", verbosity >= verbosityLevelHigh).WithAlignment(ui.TableRight),
 			ui.NewTableColumn(keyStoryId, "Story ID", true),
@@ -294,8 +315,8 @@ var TaskCmd = &cobra.Command{
 				keyStoryId:     fmt.Sprintf("STORY-%d", task.StoryID),
 				keyProject:     project,
 				keyName:        task.Name,
-				keyAssignee:    strings.Join(task.Assignee, ", "),
-				keyReviewer:    strings.Join(task.Reviewer, ", "),
+				keyAssignee:    task.Assignee,
+				keyReviewer:    task.Reviewer,
 				keyStatus:      task.Status,
 				keyEstimate:    fmt.Sprintf("%.1f h", task.Estimate),
 				keyPriority:    task.Priority,
@@ -325,6 +346,46 @@ var TaskCmd = &cobra.Command{
 				ui.PrintlnfWarn("Could not export to CSV: %s", err.Error())
 			} else {
 				ui.PrintlnfInfo("Data exported to CSV file %s", abs)
+			}
+		}
+
+		// Grouping
+		if grouping, err := cmd.Flags().GetString("group-by"); err != nil {
+			return err
+		} else {
+			if grouping == "user" {
+				columns := []ui.TableColumn{
+					ui.NewTableColumn(keyUser, "User", true),
+					ui.NewTableColumn(keyCount, "Count", true).WithAlignment(ui.TableRight),
+					ui.NewTableColumn(keyHours, "Hours", true).WithAlignment(ui.TableRight),
+				}
+				// Add rows
+				groupingMap := make(map[string]TaskGroupingValues, 0)
+				for _, task := range tasks {
+					if r, ok := groupingMap[task.Assignee]; ok {
+						groupingMap[task.Assignee] = TaskGroupingValues{
+							Count: r.Count + 1,
+							Hours: r.Hours + task.Estimate,
+						}
+					} else {
+						groupingMap[task.Assignee] = TaskGroupingValues{
+							Count: 1,
+							Hours: task.Estimate,
+						}
+					}
+				}
+				rows := make([]ui.TableRow, 0, len(groupingMap))
+				for user, values := range groupingMap {
+					rows = append(rows, ui.TableRow{
+						keyUser:  user,
+						keyCount: fmt.Sprintf("%d", values.Count),
+						keyHours: fmt.Sprintf("%.1f h", values.Hours),
+					})
+				}
+
+				// Render result
+				table := ui.NewTable(columns).WithRows(rows)
+				fmt.Println(table.Render())
 			}
 		}
 

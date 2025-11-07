@@ -184,6 +184,7 @@ type Task struct {
 	Created   time.Time
 	Estimate  float64
 	SprintID  string
+	URL       string
 }
 
 func parseTaskPage(p notionapi.Page) (Task, error) {
@@ -199,6 +200,7 @@ func parseTaskPage(p notionapi.Page) (Task, error) {
 		Created:   p.CreatedTime,
 		Estimate:  ParseNumber(p.Properties["estimate hours"]),
 		SprintID:  ParseRelation(p.Properties["Sprint"])[0],
+		URL:       p.URL,
 	}, nil
 }
 

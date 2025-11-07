@@ -40,10 +40,9 @@ var (
 	keyReviewer    = "reviewer"
 	keyPriority    = "priority"
 	keyEstimate    = "estimate"
-	keyCreatedTime = "created_time"
-	keyUser        = "user"
+	keyCreatedTime = "createdTime"
+	keyStoryURL    = "storyURL"
 	keyCount       = "count"
-	keyHours       = "hours"
 )
 
 func init() {
@@ -62,20 +61,23 @@ func init() {
 
 	// Sprint
 	TaskCmd.Flags().Var(
-		flags.StringChoiceOrInt([]string{"default", "all", "backlog", "current"}, "default"),
+		flags.StringChoiceOrInt([]string{"default", "all", "backlog", "current", "next"}, "default"),
 		"sprint",
 		"sprint to search tasks in, by default ingnores backlog [all, default, backlog, current, <ID>]",
 	)
 
+	// Additional fields
+	TaskCmd.Flags().Bool("show-url", false, "add the url of the task page to the output")
+
 	// Grouping
 	TaskCmd.Flags().VarP(
 		flags.StringChoice(
-			[]string{"user"},
+			[]string{"assignee"},
 			"",
 		),
 		"group-by",
 		"g",
-		"define if and how to group data [user]",
+		"define if and how to group data [assignee]",
 	)
 
 	// Limits
@@ -194,9 +196,16 @@ var TaskCmd = &cobra.Command{
 			filter.Sprint = nil
 		} else if sprint == "backlog" {
 			filter.Sprint = notion.TaskSprintOnlyBacklog{}
-		} else if sprint == "current" {
+		} else if sprint == "current" || sprint == "next" {
 			// Fetch sprint
-			s := "Current"
+			var s string
+			switch sprint {
+			case "current":
+				s = "Current"
+			case "next":
+				s = "Next"
+			}
+
 			sprintFetcher := notionClient.NewSprintFetcher(
 				ctx,
 				config.SprintsDatabaseID(),
@@ -265,6 +274,12 @@ var TaskCmd = &cobra.Command{
 			verbosity = verbosityLevelDefault
 		}
 
+		// Story link Flag
+		showStoryLink, err := cmd.Flags().GetBool("show-url")
+		if err != nil {
+			return err
+		}
+
 		// Setup table
 		columns := []ui.TableColumn{
 			ui.NewTableColumn(keyId, "ID", verbosity >= verbosityLevelHigh).WithAlignment(ui.TableRight),
@@ -298,6 +313,7 @@ var TaskCmd = &cobra.Command{
 					return style
 				},
 			),
+			ui.NewTableColumn(keyStoryURL, "URL", showStoryLink),
 			ui.NewTableColumn(keyCreatedTime, "Created", verbosity >= verbosityLevelHigh),
 		}
 
@@ -320,6 +336,7 @@ var TaskCmd = &cobra.Command{
 				keyStatus:      task.Status,
 				keyEstimate:    fmt.Sprintf("%.1f h", task.Estimate),
 				keyPriority:    task.Priority,
+				keyStoryURL:    task.URL,
 				keyCreatedTime: task.Created.Local().Format(timeFormat),
 			})
 		}
@@ -353,11 +370,11 @@ var TaskCmd = &cobra.Command{
 		if grouping, err := cmd.Flags().GetString("group-by"); err != nil {
 			return err
 		} else {
-			if grouping == "user" {
+			if grouping == "assignee" {
 				columns := []ui.TableColumn{
-					ui.NewTableColumn(keyUser, "User", true),
+					ui.NewTableColumn(keyAssignee, "Assignee", true),
 					ui.NewTableColumn(keyCount, "Count", true).WithAlignment(ui.TableRight),
-					ui.NewTableColumn(keyHours, "Hours", true).WithAlignment(ui.TableRight),
+					ui.NewTableColumn(keyEstimate, "Estimate", true).WithAlignment(ui.TableRight),
 				}
 				// Add rows
 				groupingMap := make(map[string]TaskGroupingValues, 0)
@@ -375,11 +392,11 @@ var TaskCmd = &cobra.Command{
 					}
 				}
 				rows := make([]ui.TableRow, 0, len(groupingMap))
-				for user, values := range groupingMap {
+				for assignee, values := range groupingMap {
 					rows = append(rows, ui.TableRow{
-						keyUser:  user,
-						keyCount: fmt.Sprintf("%d", values.Count),
-						keyHours: fmt.Sprintf("%.1f h", values.Hours),
+						keyAssignee: assignee,
+						keyCount:    fmt.Sprintf("%d", values.Count),
+						keyEstimate: fmt.Sprintf("%.1f h", values.Hours),
 					})
 				}
 

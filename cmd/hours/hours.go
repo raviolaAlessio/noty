@@ -267,7 +267,6 @@ var HoursCmd = &cobra.Command{
 
 				// Render result
 				table := ui.NewTable(columns).WithRows(rows)
-				fmt.Println()
 				fmt.Println(table.Render())
 			}
 		}

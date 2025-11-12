@@ -9,11 +9,59 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 )
 
-// Style definitions
-var (
-	HeaderStyle = lipgloss.NewStyle().Foreground(Primary).Bold(true).Padding(0, 1)
-	RowStyle    = lipgloss.NewStyle().Padding(0, 1)
-)
+type TableStyle struct {
+	HeaderStyle  lipgloss.Style
+	RowStyle     lipgloss.Style
+	BorderStyle  lipgloss.Border
+	BorderHeader bool
+	BorderColumn bool
+	BorderTop    bool
+	BorderLeft   bool
+	BorderBottom bool
+	BorderRight  bool
+}
+
+var TableStyleDefault = TableStyle{
+	HeaderStyle:  lipgloss.NewStyle().Foreground(Primary).Bold(true).Padding(0, 1),
+	RowStyle:     lipgloss.NewStyle().Padding(0, 1),
+	BorderStyle:  lipgloss.HiddenBorder(),
+	BorderHeader: false,
+	BorderColumn: false,
+	BorderTop:    false,
+	BorderLeft:   false,
+	BorderBottom: false,
+	BorderRight:  false,
+}
+
+var TableStyleMarkdown = TableStyle{
+	HeaderStyle: lipgloss.NewStyle().Bold(true).Padding(0, 1),
+	RowStyle:    lipgloss.NewStyle().Padding(0, 1),
+	BorderStyle: lipgloss.Border{
+		Left:  "|",
+		Right: "|",
+
+		Top:      "-",
+		TopLeft:  "|",
+		TopRight: "|",
+
+		Bottom:      "-",
+		BottomLeft:  "|",
+		BottomRight: "|",
+
+		Middle:      "|",
+		MiddleLeft:  "|",
+		MiddleRight: "|",
+
+		MiddleTop:    "|",
+		MiddleBottom: "|",
+	},
+	BorderHeader: true,
+	BorderColumn: true,
+	BorderTop:    false,
+	BorderLeft:   true,
+	BorderBottom: false,
+	BorderRight:  true,
+}
 
 type TableRow = map[string]string
 
@@ -79,6 +127,7 @@ type Table struct {
 	columns     []TableColumn
 	rows        []TableRow
 	emptyString string
+	style       TableStyle
 }
 
 func NewTable(columns []TableColumn) Table {
@@ -86,11 +135,17 @@ func NewTable(columns []TableColumn) Table {
 		columns:     columns,
 		rows:        []TableRow{},
 		emptyString: "-",
+		style:       TableStyleDefault,
 	}
 }
 
 func (t Table) WithEmptyString(s string) Table {
 	t.emptyString = s
+	return t
+}
+
+func (t Table) WithStyle(s TableStyle) Table {
+	t.style = s
 	return t
 }
 
@@ -142,17 +197,18 @@ func (t *Table) Render() string {
 	lt := table.New().
 		Headers(headers...).
 		Rows(rows...).
-		Border(lipgloss.HiddenBorder()).
-		BorderLeft(false).BorderRight(false).BorderTop(true).BorderBottom(false).
-		BorderColumn(false).BorderHeader(false).
+		Border(t.style.BorderStyle).
+		BorderLeft(t.style.BorderLeft).BorderRight(t.style.BorderRight).
+		BorderTop(t.style.BorderTop).BorderBottom(t.style.BorderBottom).
+		BorderHeader(t.style.BorderHeader).BorderColumn(t.style.BorderColumn).
 		StyleFunc(func(row int, col int) lipgloss.Style {
 			var sty lipgloss.Style
 			column := t.columns[col+columnOffsets[col]]
 
 			if row == table.HeaderRow {
-				sty = HeaderStyle
+				sty = t.style.HeaderStyle
 			} else {
-				sty = column.StyleFunc(RowStyle, rows[row][col])
+				sty = column.StyleFunc(t.style.RowStyle, rows[row][col])
 			}
 
 			switch column.Alignment {

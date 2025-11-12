@@ -96,6 +96,15 @@ func init() {
 		"increase or decrease amount of output fields, defaults to 1 [0, 1, 2]",
 	)
 
+	TaskCmd.Flags().Var(
+		flags.StringChoice(
+			[]string{"default", "md"},
+			"default",
+		),
+		"style",
+		"output table style [default, md]",
+	)
+
 	// Export
 	TaskCmd.Flags().StringP("outfile", "o", "", "export result as csv")
 }
@@ -280,6 +289,18 @@ var TaskCmd = &cobra.Command{
 			return err
 		}
 
+		var tableStyle ui.TableStyle
+		if style, err := cmd.Flags().GetString("style"); err != nil {
+			return err
+		} else {
+			switch style {
+			case "md":
+				tableStyle = ui.TableStyleMarkdown
+			default:
+				tableStyle = ui.TableStyleDefault
+			}
+		}
+
 		// Setup table
 		columns := []ui.TableColumn{
 			ui.NewTableColumn(keyId, "ID", verbosity >= verbosityLevelHigh).WithAlignment(ui.TableRight),
@@ -340,8 +361,9 @@ var TaskCmd = &cobra.Command{
 				keyCreatedTime: task.Created.Local().Format(timeFormat),
 			})
 		}
+
 		// Render result
-		table := ui.NewTable(columns).WithRows(rows)
+		table := ui.NewTable(columns).WithStyle(tableStyle).WithRows(rows)
 		fmt.Println(table.Render())
 
 		resultLog := fmt.Sprintf("\nFetched %d tasks", len(rows))

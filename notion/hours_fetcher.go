@@ -86,26 +86,21 @@ type HoursEntry struct {
 	ID           string
 	Created      time.Time
 	User         string
-	ProjectID    []string
+	ProjectID    *string
 	TaskID       *string
-	CommissionID []string
+	CommissionID *string
 	Date         time.Time
 	Hours        float64
 }
 
 func parseHoursEntryPage(p notionapi.Page) (HoursEntry, error) {
-	var taskId *string
-	if teaskRel := ParseRelation(p.Properties["task"]); len(teaskRel) > 0 {
-		taskId = &teaskRel[0]
-	}
-
 	return HoursEntry{
 		ID:           p.ID.String(),
 		Created:      p.CreatedTime,
 		User:         ParsePeople(p.Properties["codeployer"])[0],
-		ProjectID:    ParseRelation(p.Properties["progetto"]),
-		TaskID:       taskId,
-		CommissionID: ParseRelation(p.Properties["commessa"]),
+		ProjectID:    OneOrNil(ParseRelation(p.Properties["progetto"])),
+		TaskID:       OneOrNil(ParseRelation(p.Properties["task"])),
+		CommissionID: OneOrNil(ParseRelation(p.Properties["commessa"])),
 		Date:         ParseDate(p.Properties["data"]).Start,
 		Hours:        ParseNumber(p.Properties["ore"]),
 	}, nil

@@ -180,7 +180,7 @@ type Task struct {
 	Reviewer  string
 	Status    string
 	Priority  string
-	ProjectID []string
+	ProjectID *string
 	Created   time.Time
 	Estimate  float64
 	SprintID  string
@@ -196,7 +196,7 @@ func parseTaskPage(p notionapi.Page) (Task, error) {
 		Assignee:  ParseUserName(p.Properties["Assignee"], "-"),
 		Reviewer:  ParseUserName(p.Properties["Reviewer"], "-"),
 		Priority:  ParseSelect(p.Properties["Priority"]),
-		ProjectID: ParseRelation(p.Properties["Project"]),
+		ProjectID: OneOrNil(ParseRelation(p.Properties["Project"])),
 		Created:   p.CreatedTime,
 		Estimate:  ParseNumber(p.Properties["estimate hours"]),
 		SprintID:  ParseRelation(p.Properties["Sprint"])[0],

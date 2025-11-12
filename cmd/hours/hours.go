@@ -22,7 +22,7 @@ const (
 	VerbosityLevelHigh    VerbosityLevel = 2
 )
 
-type GroupingValues struct {
+type EntryGroupingValues struct {
 	Entries int
 	Hours   float64
 }
@@ -48,7 +48,7 @@ func init() {
 	// Grouping
 	HoursCmd.Flags().VarP(
 		flags.StringChoice(
-			[]string{"user"},
+			[]string{"user", "project"},
 			"",
 		),
 		"group-by",
@@ -165,6 +165,18 @@ var HoursCmd = &cobra.Command{
 		}
 
 		// Setup table
+		var tableStyle ui.TableStyle
+		if style, err := cmd.Flags().GetString("style"); err != nil {
+			return err
+		} else {
+			switch style {
+			case "md":
+				tableStyle = ui.TableStyleMarkdown
+			default:
+				tableStyle = ui.TableStyleDefault
+			}
+		}
+
 		var (
 			keyId      = "id"
 			keyDate    = "date"
@@ -193,8 +205,8 @@ var HoursCmd = &cobra.Command{
 		rows := make([]ui.TableRow, 0, len(hoursEntries))
 		for _, entry := range hoursEntries {
 			project := ""
-			if len(entry.ProjectID) > 0 {
-				project = projectsMap[entry.ProjectID[0]]
+			if entry.ProjectID != nil {
+				project = projectsMap[*entry.ProjectID]
 			}
 			rows = append(rows, ui.TableRow{
 				keyId:          entry.ID,
@@ -206,7 +218,8 @@ var HoursCmd = &cobra.Command{
 			})
 		}
 		// Render result
-		table := ui.NewTable(columns).WithRows(rows)
+		table := ui.NewTable(columns).WithStyle(tableStyle).WithRows(rows)
+		fmt.Println()
 		fmt.Println(table.Render())
 
 		resultLog := fmt.Sprintf("\nFetched %d tasks", len(rows))
@@ -235,40 +248,64 @@ var HoursCmd = &cobra.Command{
 		if grouping, err := cmd.Flags().GetString("group-by"); err != nil {
 			return err
 		} else {
-			if grouping == "user" {
-				columns := []ui.TableColumn{
-					ui.NewTableColumn(keyUser, "User", true),
-					ui.NewTableColumn(keyEntries, "Entries", true).WithAlignment(ui.TableRight),
-					ui.NewTableColumn(keyHours, "Hours", true).WithAlignment(ui.TableRight),
+			// Define grouping paramteres
+			var groupKey string
+			var groupTitle string
+			var getGroupKeyValue func(entry notion.HoursEntry) string
+
+			switch grouping {
+			case "user":
+				groupKey = keyUser
+				groupTitle = "User"
+				getGroupKeyValue = func(entry notion.HoursEntry) string { return entry.User }
+			case "project":
+				groupKey = keyProject
+				groupTitle = "Project"
+				getGroupKeyValue = func(entry notion.HoursEntry) string {
+					if entry.ProjectID != nil {
+						return projectsMap[*entry.ProjectID]
+					}
+					return ""
 				}
-				// Add rows
-				groupingMap := make(map[string]GroupingValues, 0)
-				for _, entry := range hoursEntries {
-					if r, ok := groupingMap[entry.User]; ok {
-						groupingMap[entry.User] = GroupingValues{
-							Hours:   r.Hours + entry.Hours,
-							Entries: r.Entries + 1,
-						}
-					} else {
-						groupingMap[entry.User] = GroupingValues{
-							Hours:   entry.Hours,
-							Entries: 1,
-						}
+			}
+
+			// Define columns
+			columns := []ui.TableColumn{
+				ui.NewTableColumn(groupKey, groupTitle, true),
+				ui.NewTableColumn(keyEntries, "Entries", true).WithAlignment(ui.TableRight),
+				ui.NewTableColumn(keyHours, "Hours", true).WithAlignment(ui.TableRight),
+			}
+
+			// Add rows
+			groupingMap := make(map[string]EntryGroupingValues, 0)
+			for _, entry := range hoursEntries {
+				key := getGroupKeyValue(entry)
+				if r, ok := groupingMap[key]; ok {
+					groupingMap[key] = EntryGroupingValues{
+						Entries: r.Entries + 1,
+						Hours:   r.Hours + entry.Hours,
+					}
+				} else {
+					groupingMap[key] = EntryGroupingValues{
+						Entries: 1,
+						Hours:   entry.Hours,
 					}
 				}
-				rows := make([]ui.TableRow, 0, len(groupingMap))
-				for user, values := range groupingMap {
-					rows = append(rows, ui.TableRow{
-						keyUser:    user,
-						keyEntries: fmt.Sprintf("%d", values.Entries),
-						keyHours:   fmt.Sprintf("%.1f h", values.Hours),
-					})
-				}
-
-				// Render result
-				table := ui.NewTable(columns).WithRows(rows)
-				fmt.Println(table.Render())
 			}
+
+			rows := make([]ui.TableRow, 0, len(groupingMap))
+			for groupValue, values := range groupingMap {
+				rows = append(rows, ui.TableRow{
+					groupKey:   groupValue,
+					keyEntries: fmt.Sprintf("%d", values.Entries),
+					keyHours:   fmt.Sprintf("%.1f h", values.Hours),
+				})
+			}
+
+			// Render result
+			fmt.Println()
+			table := ui.NewTable(columns).WithRows(rows)
+			fmt.Println(table.Render())
 		}
 
 		return nil

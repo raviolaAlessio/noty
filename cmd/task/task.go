@@ -72,7 +72,7 @@ func init() {
 	// Grouping
 	TaskCmd.Flags().VarP(
 		flags.StringChoice(
-			[]string{"assignee"},
+			[]string{"assignee", "project"},
 			"",
 		),
 		"group-by",
@@ -94,15 +94,6 @@ func init() {
 		"verbosity",
 		"v",
 		"increase or decrease amount of output fields, defaults to 1 [0, 1, 2]",
-	)
-
-	TaskCmd.Flags().Var(
-		flags.StringChoice(
-			[]string{"default", "md"},
-			"default",
-		),
-		"style",
-		"output table style [default, md]",
 	)
 
 	// Export
@@ -344,8 +335,8 @@ var TaskCmd = &cobra.Command{
 		rows := make([]ui.TableRow, 0, len(tasks))
 		for _, task := range tasks {
 			project := ""
-			if len(task.ProjectID) > 0 {
-				project = projectsMap[task.ProjectID[0]]
+			if task.ProjectID != nil {
+				project = projectsMap[*task.ProjectID]
 			}
 			rows = append(rows, ui.TableRow{
 				keyId:          task.ID,
@@ -364,6 +355,7 @@ var TaskCmd = &cobra.Command{
 
 		// Render result
 		table := ui.NewTable(columns).WithStyle(tableStyle).WithRows(rows)
+		fmt.Println()
 		fmt.Println(table.Render())
 
 		resultLog := fmt.Sprintf("\nFetched %d tasks", len(rows))
@@ -392,40 +384,64 @@ var TaskCmd = &cobra.Command{
 		if grouping, err := cmd.Flags().GetString("group-by"); err != nil {
 			return err
 		} else {
-			if grouping == "assignee" {
-				columns := []ui.TableColumn{
-					ui.NewTableColumn(keyAssignee, "Assignee", true),
-					ui.NewTableColumn(keyCount, "Count", true).WithAlignment(ui.TableRight),
-					ui.NewTableColumn(keyEstimate, "Estimate", true).WithAlignment(ui.TableRight),
+			// Define grouping paramteres
+			var groupKey string
+			var groupTitle string
+			var getGroupKeyValue func(task notion.Task) string
+
+			switch grouping {
+			case "assignee":
+				groupKey = keyAssignee
+				groupTitle = "Assignee"
+				getGroupKeyValue = func(task notion.Task) string { return task.Assignee }
+			case "project":
+				groupKey = keyProject
+				groupTitle = "Project"
+				getGroupKeyValue = func(task notion.Task) string {
+					if task.ProjectID != nil {
+						return projectsMap[*task.ProjectID]
+					}
+					return ""
 				}
-				// Add rows
-				groupingMap := make(map[string]TaskGroupingValues, 0)
-				for _, task := range tasks {
-					if r, ok := groupingMap[task.Assignee]; ok {
-						groupingMap[task.Assignee] = TaskGroupingValues{
-							Count: r.Count + 1,
-							Hours: r.Hours + task.Estimate,
-						}
-					} else {
-						groupingMap[task.Assignee] = TaskGroupingValues{
-							Count: 1,
-							Hours: task.Estimate,
-						}
+			}
+
+			// Define columns
+			columns := []ui.TableColumn{
+				ui.NewTableColumn(groupKey, groupTitle, true),
+				ui.NewTableColumn(keyCount, "Count", true).WithAlignment(ui.TableRight),
+				ui.NewTableColumn(keyEstimate, "Estimate", true).WithAlignment(ui.TableRight),
+			}
+
+			// Add rows
+			groupingMap := make(map[string]TaskGroupingValues, 0)
+			for _, task := range tasks {
+				key := getGroupKeyValue(task)
+				if r, ok := groupingMap[key]; ok {
+					groupingMap[key] = TaskGroupingValues{
+						Count: r.Count + 1,
+						Hours: r.Hours + task.Estimate,
+					}
+				} else {
+					groupingMap[key] = TaskGroupingValues{
+						Count: 1,
+						Hours: task.Estimate,
 					}
 				}
-				rows := make([]ui.TableRow, 0, len(groupingMap))
-				for assignee, values := range groupingMap {
-					rows = append(rows, ui.TableRow{
-						keyAssignee: assignee,
-						keyCount:    fmt.Sprintf("%d", values.Count),
-						keyEstimate: fmt.Sprintf("%.1f h", values.Hours),
-					})
-				}
-
-				// Render result
-				table := ui.NewTable(columns).WithRows(rows)
-				fmt.Println(table.Render())
 			}
+
+			rows := make([]ui.TableRow, 0, len(groupingMap))
+			for groupValue, values := range groupingMap {
+				rows = append(rows, ui.TableRow{
+					groupKey:    groupValue,
+					keyCount:    fmt.Sprintf("%d", values.Count),
+					keyEstimate: fmt.Sprintf("%.1f h", values.Hours),
+				})
+			}
+
+			// Render result
+			table := ui.NewTable(columns).WithStyle(tableStyle).WithRows(rows)
+			fmt.Println()
+			fmt.Println(table.Render())
 		}
 
 		return nil

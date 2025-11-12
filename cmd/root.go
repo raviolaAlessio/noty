@@ -8,6 +8,7 @@ import (
 	"github.com/ravvio/noty/cmd/hours"
 	"github.com/ravvio/noty/cmd/task"
 	"github.com/ravvio/noty/config"
+	"github.com/ravvio/noty/flags"
 	"github.com/ravvio/noty/ui"
 	"github.com/spf13/cobra"
 )
@@ -30,6 +31,15 @@ func init() {
 	rootCmd.AddCommand(configure.ConfigCmd)
 	rootCmd.AddCommand(task.TaskCmd)
 	rootCmd.AddCommand(hours.HoursCmd)
+
+	rootCmd.PersistentFlags().Var(
+		flags.StringChoice(
+			[]string{"default", "md"},
+			"default",
+		),
+		"style",
+		"output table style [default, md]",
+	)
 }
 
 var rootCmd = &cobra.Command{

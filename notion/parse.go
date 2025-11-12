@@ -99,3 +99,10 @@ func ParseRollup(p notionapi.Property) string {
 	value := p.(*notionapi.RollupProperty).Rollup.Number
 	return fmt.Sprintf("Rollup %f", value)
 }
+
+func OneOrNil[T any](value []T) *T {
+	if len(value) > 0 {
+		return &value[0]
+	}
+	return nil
+}

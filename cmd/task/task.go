@@ -14,14 +14,7 @@ import (
 	"github.com/ravvio/noty/flags"
 	"github.com/ravvio/noty/notion"
 	"github.com/ravvio/noty/ui"
-)
-
-type VerbosityLevel = int
-
-const (
-	verbosityLevelLow     VerbosityLevel = 0
-	verbosityLevelDefault VerbosityLevel = 1
-	verbosityLevelHigh    VerbosityLevel = 2
+	"github.com/ravvio/noty/utils"
 )
 
 type TaskGroupingValues struct {
@@ -45,6 +38,42 @@ var (
 	keyCount       = "count"
 )
 
+var taskColumns = map[string]ui.TableColumn{
+	keyId:       ui.NewTableColumn(keyId, "ID").WithAlignment(ui.TableRight),
+	keyStoryId:  ui.NewTableColumn(keyStoryId, "Story ID"),
+	keyProject:  ui.NewTableColumn(keyProject, "Project"),
+	keyName:     ui.NewTableColumn(keyName, "Name").WithMaxWidth(40),
+	keyAssignee: ui.NewTableColumn(keyAssignee, "Assignee"),
+	keyReviewer: ui.NewTableColumn(keyReviewer, "Reviewer"),
+	keyStatus: ui.NewTableColumn(keyStatus, "Status").WithValueFunc(
+		func(value string) string {
+			if config.UseEmotes() {
+				emote := config.StatusEmote(value)
+				if emote != "" {
+					value = fmt.Sprintf("%s %s", emote, value)
+				}
+			}
+			return value
+		},
+	),
+	keyEstimate: ui.NewTableColumn(keyEstimate, "Estimate").WithAlignment(ui.TableRight),
+	keyPriority: ui.NewTableColumn(keyPriority, "Priority").WithStyleFunc(
+		func(style lipgloss.Style, value string) lipgloss.Style {
+			switch value {
+			case "High":
+				return style.Foreground(ui.PriorityHigh)
+			case "Medium":
+				return style.Foreground(ui.PriorityMedium)
+			case "Low":
+				return style.Foreground(ui.PriorityLow)
+			}
+			return style
+		},
+	),
+	keyStoryURL:    ui.NewTableColumn(keyStoryURL, "URL"),
+	keyCreatedTime: ui.NewTableColumn(keyCreatedTime, "Created"),
+}
+
 func init() {
 	// Users
 	TaskCmd.Flags().StringSliceP("users", "u", []string{}, "filter tasks by users (assignee or reviewer)")
@@ -66,9 +95,6 @@ func init() {
 		"sprint to search tasks in, by default ingnores backlog [all, default, backlog, current, <ID>]",
 	)
 
-	// Additional fields
-	TaskCmd.Flags().Bool("show-url", false, "add the url of the task page to the output")
-
 	// Grouping
 	TaskCmd.Flags().VarP(
 		flags.StringChoice(
@@ -86,15 +112,29 @@ func init() {
 	TaskCmd.MarkFlagsMutuallyExclusive("all", "limit")
 
 	// Output
-	TaskCmd.Flags().VarP(
-		flags.NumberChoice(
-			[]int{verbosityLevelLow, verbosityLevelDefault, verbosityLevelHigh},
-			verbosityLevelDefault,
+	keys := utils.MapKeys(taskColumns)
+	defaultKeys := []string{keyStoryId, keyProject, keyName, keyAssignee, keyReviewer, keyStatus, keyEstimate, keyPriority}
+
+	TaskCmd.Flags().Var(
+		flags.StringChoiceSlice(
+			keys,
+			defaultKeys,
 		),
-		"verbosity",
-		"v",
-		"increase or decrease amount of output fields, defaults to 1 [0, 1, 2]",
+		"columns",
+		fmt.Sprintf("columns to show in the output table, defaults to '%s' %v", strings.Join(defaultKeys, ","), keys),
 	)
+	TaskCmd.Flags().Var(
+		flags.StringChoiceSlice(
+			keys,
+			[]string{},
+		),
+		"add-columns",
+		fmt.Sprintf("columns to add to the output table %v", keys),
+	)
+	TaskCmd.MarkFlagsMutuallyExclusive("columns", "add-columns")
+
+	// Additional fields
+	TaskCmd.Flags().Bool("show-url", false, "add the url of the task page to the output table")
 
 	// Export
 	TaskCmd.Flags().StringP("outfile", "o", "", "export result as csv")
@@ -110,6 +150,7 @@ var TaskCmd = &cobra.Command{
 		// Load config
 		projectsList := config.Projects()
 		projectsMap := config.ProjectsMap()
+		timeFormat := config.DatetimeFormat()
 
 		// Create filter
 		filter := notion.TaskFilter{}
@@ -265,21 +306,7 @@ var TaskCmd = &cobra.Command{
 			return err
 		}
 
-		// Verbosity Flag
-		verbosity, err := cmd.Flags().GetInt("verbosity")
-		if err != nil {
-			return err
-		}
-		if verbosity == 0 {
-			verbosity = verbosityLevelDefault
-		}
-
-		// Story link Flag
-		showStoryLink, err := cmd.Flags().GetBool("show-url")
-		if err != nil {
-			return err
-		}
-
+		// Setup table
 		var tableStyle ui.TableStyle
 		if style, err := cmd.Flags().GetString("style"); err != nil {
 			return err
@@ -292,44 +319,22 @@ var TaskCmd = &cobra.Command{
 			}
 		}
 
-		// Setup table
-		columns := []ui.TableColumn{
-			ui.NewTableColumn(keyId, "ID", verbosity >= verbosityLevelHigh).WithAlignment(ui.TableRight),
-			ui.NewTableColumn(keyStoryId, "Story ID", true),
-			ui.NewTableColumn(keyProject, "Project", verbosity >= verbosityLevelDefault),
-			ui.NewTableColumn(keyName, "Name", verbosity >= verbosityLevelDefault).WithMaxWidth(40),
-			ui.NewTableColumn(keyAssignee, "Assignee", true),
-			ui.NewTableColumn(keyReviewer, "Reviewer", verbosity >= verbosityLevelDefault),
-			ui.NewTableColumn(keyStatus, "Status", true).WithValueFunc(
-				func(value string) string {
-					if config.UseEmotes() {
-						emote := config.StatusEmote(value)
-						if emote != "" {
-							value = fmt.Sprintf("%s %s", emote, value)
-						}
-					}
-					return value
-				},
-			),
-			ui.NewTableColumn(keyEstimate, "Estimate", true).WithAlignment(ui.TableRight),
-			ui.NewTableColumn(keyPriority, "Priority", verbosity >= verbosityLevelDefault).WithStyleFunc(
-				func(style lipgloss.Style, value string) lipgloss.Style {
-					switch value {
-					case "High":
-						return style.Foreground(ui.PriorityHigh)
-					case "Medium":
-						return style.Foreground(ui.PriorityMedium)
-					case "Low":
-						return style.Foreground(ui.PriorityLow)
-					}
-					return style
-				},
-			),
-			ui.NewTableColumn(keyStoryURL, "URL", showStoryLink),
-			ui.NewTableColumn(keyCreatedTime, "Created", verbosity >= verbosityLevelHigh),
+		// Define layout
+		columnKeys, err := cmd.Flags().GetStringSlice("columns")
+		if err != nil {
+			return err
 		}
 
-		timeFormat := config.DatetimeFormat()
+		if columnKeysToAdd, err := cmd.Flags().GetStringSlice("add-columns"); err != nil {
+			return err
+		} else {
+			columnKeys = append(columnKeys, columnKeysToAdd...)
+		}
+
+		var columns = make([]ui.TableColumn, 0, len(columnKeys))
+		for _, key := range columnKeys {
+			columns = append(columns, taskColumns[key])
+		}
 
 		// Add rows
 		rows := make([]ui.TableRow, 0, len(tasks))
@@ -407,9 +412,9 @@ var TaskCmd = &cobra.Command{
 
 			// Define columns
 			columns := []ui.TableColumn{
-				ui.NewTableColumn(groupKey, groupTitle, true),
-				ui.NewTableColumn(keyCount, "Count", true).WithAlignment(ui.TableRight),
-				ui.NewTableColumn(keyEstimate, "Estimate", true).WithAlignment(ui.TableRight),
+				ui.NewTableColumn(groupKey, groupTitle),
+				ui.NewTableColumn(keyCount, "Count").WithAlignment(ui.TableRight),
+				ui.NewTableColumn(keyEstimate, "Estimate").WithAlignment(ui.TableRight),
 			}
 
 			// Add rows

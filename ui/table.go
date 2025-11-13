@@ -83,11 +83,11 @@ type TableColumn struct {
 	StyleFunc func(style lipgloss.Style, value string) lipgloss.Style
 }
 
-func NewTableColumn(key string, title string, active bool) TableColumn {
+func NewTableColumn(key string, title string) TableColumn {
 	return TableColumn{
 		Key:       key,
 		Title:     title,
-		Active:    active,
+		Active:    true,
 		MaxWidth:  -1,
 		Alignment: TableLeft,
 		StyleFunc: func(style lipgloss.Style, value string) lipgloss.Style {
@@ -106,6 +106,11 @@ func (c TableColumn) WithMaxWidth(w int) TableColumn {
 
 func (c TableColumn) WithAlignment(a TableAlignment) TableColumn {
 	c.Alignment = a
+	return c
+}
+
+func (c TableColumn) WithActive(a bool) TableColumn {
+	c.Active = a
 	return c
 }
 

@@ -10,21 +10,34 @@ import (
 	"github.com/ravvio/noty/flags"
 	"github.com/ravvio/noty/notion"
 	"github.com/ravvio/noty/ui"
+	"github.com/ravvio/noty/utils"
 	"github.com/spf13/cobra"
-)
-
-// TODO UNIFY
-type VerbosityLevel = int
-
-const (
-	VerbosityLevelLow     VerbosityLevel = 0
-	VerbosityLevelDefault VerbosityLevel = 1
-	VerbosityLevelHigh    VerbosityLevel = 2
 )
 
 type EntryGroupingValues struct {
 	Entries int
 	Hours   float64
+}
+
+var (
+	keyId      = "id"
+	keyDate    = "date"
+	keyUser    = "user"
+	keyProject = "project"
+	// TODO
+	// keyTask
+	// keyCommission
+	keyHours       = "hours"
+	keyCreatedTime = "createdTime"
+	keyEntries     = "entries"
+)
+var hoursColumns = map[string]ui.TableColumn{
+	keyId:          ui.NewTableColumn(keyId, "ID"),
+	keyDate:        ui.NewTableColumn(keyDate, "Date"),
+	keyUser:        ui.NewTableColumn(keyUser, "User"),
+	keyProject:     ui.NewTableColumn(keyProject, "Project"),
+	keyHours:       ui.NewTableColumn(keyHours, "Hours").WithAlignment(ui.TableRight),
+	keyCreatedTime: ui.NewTableColumn(keyCreatedTime, "Created"),
 }
 
 func init() {
@@ -62,15 +75,26 @@ func init() {
 	HoursCmd.MarkFlagsMutuallyExclusive("all", "limit")
 
 	// Output
-	HoursCmd.Flags().VarP(
-		flags.NumberChoice(
-			[]int{VerbosityLevelLow, VerbosityLevelDefault, VerbosityLevelHigh},
-			VerbosityLevelDefault,
+	keys := utils.MapKeys(hoursColumns)
+	defaultKeys := []string{keyDate, keyUser, keyProject, keyHours}
+
+	HoursCmd.Flags().Var(
+		flags.StringChoiceSlice(
+			keys,
+			defaultKeys,
 		),
-		"verbosity",
-		"v",
-		"increase or decrease amount of output fields, defaults to 1 [0, 1, 2]",
+		"columns",
+		fmt.Sprintf("columns to show in the output table, defaults to '%s' %v", strings.Join(defaultKeys, ","), keys),
 	)
+	HoursCmd.Flags().Var(
+		flags.StringChoiceSlice(
+			keys,
+			[]string{},
+		),
+		"add-columns",
+		fmt.Sprintf("columns to add to the output table %v", keys),
+	)
+	HoursCmd.MarkFlagsMutuallyExclusive("columns", "add-columns")
 
 	// Export
 	HoursCmd.Flags().StringP("outfile", "o", "", "export result as csv")
@@ -86,15 +110,8 @@ var HoursCmd = &cobra.Command{
 		// Load config
 		projectsList := config.Projects()
 		projectsMap := config.ProjectsMap()
-
-		// Verbosity Flag
-		verbosity, err := cmd.Flags().GetInt("verbosity")
-		if err != nil {
-			return err
-		}
-		if verbosity == 0 {
-			verbosity = VerbosityLevelDefault
-		}
+		timeFormat := config.DatetimeFormat()
+		dateFormat := config.DateFormat()
 
 		// Create filter
 		filter := notion.HoursFilter{}
@@ -177,29 +194,22 @@ var HoursCmd = &cobra.Command{
 			}
 		}
 
-		var (
-			keyId      = "id"
-			keyDate    = "date"
-			keyUser    = "user"
-			keyProject = "project"
-			// TODO
-			// keyTask
-			// keyCommission
-			keyHours       = "hours"
-			keyCreatedTime = "created_time"
-			keyEntries     = "entries"
-		)
-		columns := []ui.TableColumn{
-			ui.NewTableColumn(keyId, "ID", verbosity >= VerbosityLevelHigh),
-			ui.NewTableColumn(keyDate, "Date", true),
-			ui.NewTableColumn(keyUser, "User", true),
-			ui.NewTableColumn(keyProject, "Project", verbosity >= VerbosityLevelDefault),
-			ui.NewTableColumn(keyHours, "Hours", true).WithAlignment(ui.TableRight),
-			ui.NewTableColumn(keyCreatedTime, "Created", verbosity >= VerbosityLevelHigh),
+		// Define layout
+		columnKeys, err := cmd.Flags().GetStringSlice("columns")
+		if err != nil {
+			return err
 		}
 
-		timeFormat := config.DatetimeFormat()
-		dateFormat := config.DateFormat()
+		if columnKeysToAdd, err := cmd.Flags().GetStringSlice("add-columns"); err != nil {
+			return err
+		} else {
+			columnKeys = append(columnKeys, columnKeysToAdd...)
+		}
+
+		var columns = make([]ui.TableColumn, 0, len(columnKeys))
+		for _, key := range columnKeys {
+			columns = append(columns, hoursColumns[key])
+		}
 
 		// Add rows
 		rows := make([]ui.TableRow, 0, len(hoursEntries))
@@ -217,6 +227,7 @@ var HoursCmd = &cobra.Command{
 				keyCreatedTime: entry.Created.Local().Format(timeFormat),
 			})
 		}
+
 		// Render result
 		table := ui.NewTable(columns).WithStyle(tableStyle).WithRows(rows)
 		fmt.Println()
@@ -271,9 +282,9 @@ var HoursCmd = &cobra.Command{
 
 			// Define columns
 			columns := []ui.TableColumn{
-				ui.NewTableColumn(groupKey, groupTitle, true),
-				ui.NewTableColumn(keyEntries, "Entries", true).WithAlignment(ui.TableRight),
-				ui.NewTableColumn(keyHours, "Hours", true).WithAlignment(ui.TableRight),
+				ui.NewTableColumn(groupKey, groupTitle),
+				ui.NewTableColumn(keyEntries, "Entries").WithAlignment(ui.TableRight),
+				ui.NewTableColumn(keyHours, "Hours").WithAlignment(ui.TableRight),
 			}
 
 			// Add rows

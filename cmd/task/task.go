@@ -3,6 +3,7 @@ package task
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 
+	"github.com/ravvio/easycli-ui/etable"
 	"github.com/ravvio/noty/config"
 	"github.com/ravvio/noty/flags"
 	"github.com/ravvio/noty/notion"
@@ -38,14 +40,14 @@ var (
 	keyCount       = "count"
 )
 
-var taskColumns = map[string]ui.TableColumn{
-	keyId:       ui.NewTableColumn(keyId, "ID").WithAlignment(ui.TableRight),
-	keyStoryId:  ui.NewTableColumn(keyStoryId, "Story ID"),
-	keyProject:  ui.NewTableColumn(keyProject, "Project"),
-	keyName:     ui.NewTableColumn(keyName, "Name").WithMaxWidth(40),
-	keyAssignee: ui.NewTableColumn(keyAssignee, "Assignee"),
-	keyReviewer: ui.NewTableColumn(keyReviewer, "Reviewer"),
-	keyStatus: ui.NewTableColumn(keyStatus, "Status").WithValueFunc(
+var taskColumns = map[string]etable.TableColumn{
+	keyId:       etable.NewTableColumn(keyId, "ID").WithAlignment(etable.TableAlignmentRight),
+	keyStoryId:  etable.NewTableColumn(keyStoryId, "Story ID"),
+	keyProject:  etable.NewTableColumn(keyProject, "Project"),
+	keyName:     etable.NewTableColumn(keyName, "Name").WithMaxWidth(40),
+	keyAssignee: etable.NewTableColumn(keyAssignee, "Assignee"),
+	keyReviewer: etable.NewTableColumn(keyReviewer, "Reviewer"),
+	keyStatus: etable.NewTableColumn(keyStatus, "Status").WithValueFunc(
 		func(value string) string {
 			if config.UseEmotes() {
 				emote := config.StatusEmote(value)
@@ -56,8 +58,8 @@ var taskColumns = map[string]ui.TableColumn{
 			return value
 		},
 	),
-	keyEstimate: ui.NewTableColumn(keyEstimate, "Estimate").WithAlignment(ui.TableRight),
-	keyPriority: ui.NewTableColumn(keyPriority, "Priority").WithStyleFunc(
+	keyEstimate: etable.NewTableColumn(keyEstimate, "Estimate").WithAlignment(etable.TableAlignmentRight),
+	keyPriority: etable.NewTableColumn(keyPriority, "Priority").WithStyleFunc(
 		func(style lipgloss.Style, value string) lipgloss.Style {
 			switch value {
 			case "High":
@@ -70,8 +72,8 @@ var taskColumns = map[string]ui.TableColumn{
 			return style
 		},
 	),
-	keyStoryURL:    ui.NewTableColumn(keyStoryURL, "URL"),
-	keyCreatedTime: ui.NewTableColumn(keyCreatedTime, "Created"),
+	keyStoryURL:    etable.NewTableColumn(keyStoryURL, "URL"),
+	keyCreatedTime: etable.NewTableColumn(keyCreatedTime, "Created"),
 }
 
 func init() {
@@ -307,15 +309,15 @@ var TaskCmd = &cobra.Command{
 		}
 
 		// Setup table
-		var tableStyle ui.TableStyle
+		var tableStyle etable.TableStyle
 		if style, err := cmd.Flags().GetString("style"); err != nil {
 			return err
 		} else {
 			switch style {
 			case "md":
-				tableStyle = ui.TableStyleMarkdown
+				tableStyle = etable.TableStyleMarkdown
 			default:
-				tableStyle = ui.TableStyleDefault
+				tableStyle = etable.TableStyleDefault
 			}
 		}
 
@@ -331,19 +333,19 @@ var TaskCmd = &cobra.Command{
 			columnKeys = append(columnKeys, columnKeysToAdd...)
 		}
 
-		var columns = make([]ui.TableColumn, 0, len(columnKeys))
+		var columns = make([]etable.TableColumn, 0, len(columnKeys))
 		for _, key := range columnKeys {
 			columns = append(columns, taskColumns[key])
 		}
 
 		// Add rows
-		rows := make([]ui.TableRow, 0, len(tasks))
+		rows := make([]etable.TableRow, 0, len(tasks))
 		for _, task := range tasks {
 			project := ""
 			if task.ProjectID != nil {
 				project = projectsMap[*task.ProjectID]
 			}
-			rows = append(rows, ui.TableRow{
+			rows = append(rows, etable.TableRow{
 				keyId:          task.ID,
 				keyStoryId:     fmt.Sprintf("STORY-%d", task.StoryID),
 				keyProject:     project,
@@ -359,7 +361,7 @@ var TaskCmd = &cobra.Command{
 		}
 
 		// Render result
-		table := ui.NewTable(columns).WithStyle(tableStyle).WithRows(rows)
+		table := etable.NewTable(columns).WithStyle(tableStyle).WithRows(rows)
 		fmt.Println()
 		fmt.Println(table.Render())
 
@@ -377,7 +379,12 @@ var TaskCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			err = table.ExportCSV(abs)
+			fd, err := os.Create(abs)
+			if err != nil {
+				return err
+			}
+
+			err = table.ExportCSV(fd)
 			if err != nil {
 				ui.PrintlnfWarn("Could not export to CSV: %s", err.Error())
 			} else {
@@ -411,10 +418,10 @@ var TaskCmd = &cobra.Command{
 			}
 
 			// Define columns
-			columns := []ui.TableColumn{
-				ui.NewTableColumn(groupKey, groupTitle),
-				ui.NewTableColumn(keyCount, "Count").WithAlignment(ui.TableRight),
-				ui.NewTableColumn(keyEstimate, "Estimate").WithAlignment(ui.TableRight),
+			columns := []etable.TableColumn{
+				etable.NewTableColumn(groupKey, groupTitle),
+				etable.NewTableColumn(keyCount, "Count").WithAlignment(etable.TableAlignmentRight),
+				etable.NewTableColumn(keyEstimate, "Estimate").WithAlignment(etable.TableAlignmentRight),
 			}
 
 			// Add rows
@@ -434,9 +441,9 @@ var TaskCmd = &cobra.Command{
 				}
 			}
 
-			rows := make([]ui.TableRow, 0, len(groupingMap))
+			rows := make([]etable.TableRow, 0, len(groupingMap))
 			for groupValue, values := range groupingMap {
-				rows = append(rows, ui.TableRow{
+				rows = append(rows, etable.TableRow{
 					groupKey:    groupValue,
 					keyCount:    fmt.Sprintf("%d", values.Count),
 					keyEstimate: fmt.Sprintf("%.1f h", values.Hours),
@@ -444,7 +451,7 @@ var TaskCmd = &cobra.Command{
 			}
 
 			// Render result
-			table := ui.NewTable(columns).WithStyle(tableStyle).WithRows(rows)
+			table := etable.NewTable(columns).WithStyle(tableStyle).WithRows(rows)
 			fmt.Println()
 			fmt.Println(table.Render())
 		}

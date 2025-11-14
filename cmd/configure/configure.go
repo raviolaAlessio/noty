@@ -3,6 +3,7 @@ package configure
 import (
 	"context"
 
+	"github.com/ravvio/easycli-ui/espinner"
 	"github.com/ravvio/noty/config"
 	"github.com/ravvio/noty/notion"
 	"github.com/ravvio/noty/ui"
@@ -93,7 +94,7 @@ var ConfigCmd = &cobra.Command{
 		}
 
 		// Fetch all users
-		if _, err = ui.Spin(
+		s := espinner.NewSpinner(
 			"Loading users",
 			func() error {
 				fetcherUsers := client.NewUserFetcher(ctx, true)
@@ -104,12 +105,13 @@ var ConfigCmd = &cobra.Command{
 				viper.Set(config.KeyUsers, users)
 				return nil
 			},
-		); err != nil {
+		)
+		if err = s.Spin(); err != nil {
 			return err
 		}
 
 		// Fetch all projects
-		if _, err = ui.Spin(
+		espinner.NewSpinner(
 			"Loading projects",
 			func() error {
 				fetcherProjects := client.NewProjectFetcher(ctx, config.ProjectsDatabaseID())
@@ -120,7 +122,8 @@ var ConfigCmd = &cobra.Command{
 				viper.Set(config.KeyProjects, projects)
 				return nil
 			},
-		); err != nil {
+		)
+		if err = s.Spin(); err != nil {
 			return err
 		}
 

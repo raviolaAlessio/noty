@@ -3,9 +3,11 @@ package hours
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/ravvio/easycli-ui/etable"
 	"github.com/ravvio/noty/config"
 	"github.com/ravvio/noty/flags"
 	"github.com/ravvio/noty/notion"
@@ -31,13 +33,13 @@ var (
 	keyCreatedTime = "createdTime"
 	keyEntries     = "entries"
 )
-var hoursColumns = map[string]ui.TableColumn{
-	keyId:          ui.NewTableColumn(keyId, "ID"),
-	keyDate:        ui.NewTableColumn(keyDate, "Date"),
-	keyUser:        ui.NewTableColumn(keyUser, "User"),
-	keyProject:     ui.NewTableColumn(keyProject, "Project"),
-	keyHours:       ui.NewTableColumn(keyHours, "Hours").WithAlignment(ui.TableRight),
-	keyCreatedTime: ui.NewTableColumn(keyCreatedTime, "Created"),
+var hoursColumns = map[string]etable.TableColumn{
+	keyId:          etable.NewTableColumn(keyId, "ID"),
+	keyDate:        etable.NewTableColumn(keyDate, "Date"),
+	keyUser:        etable.NewTableColumn(keyUser, "User"),
+	keyProject:     etable.NewTableColumn(keyProject, "Project"),
+	keyHours:       etable.NewTableColumn(keyHours, "Hours").WithAlignment(etable.TableAlignmentRight),
+	keyCreatedTime: etable.NewTableColumn(keyCreatedTime, "Created"),
 }
 
 func init() {
@@ -182,15 +184,15 @@ var HoursCmd = &cobra.Command{
 		}
 
 		// Setup table
-		var tableStyle ui.TableStyle
+		var tableStyle etable.TableStyle
 		if style, err := cmd.Flags().GetString("style"); err != nil {
 			return err
 		} else {
 			switch style {
 			case "md":
-				tableStyle = ui.TableStyleMarkdown
+				tableStyle = etable.TableStyleMarkdown
 			default:
-				tableStyle = ui.TableStyleDefault
+				tableStyle = etable.TableStyleDefault
 			}
 		}
 
@@ -206,19 +208,19 @@ var HoursCmd = &cobra.Command{
 			columnKeys = append(columnKeys, columnKeysToAdd...)
 		}
 
-		var columns = make([]ui.TableColumn, 0, len(columnKeys))
+		var columns = make([]etable.TableColumn, 0, len(columnKeys))
 		for _, key := range columnKeys {
 			columns = append(columns, hoursColumns[key])
 		}
 
 		// Add rows
-		rows := make([]ui.TableRow, 0, len(hoursEntries))
+		rows := make([]etable.TableRow, 0, len(hoursEntries))
 		for _, entry := range hoursEntries {
 			project := ""
 			if entry.ProjectID != nil {
 				project = projectsMap[*entry.ProjectID]
 			}
-			rows = append(rows, ui.TableRow{
+			rows = append(rows, etable.TableRow{
 				keyId:          entry.ID,
 				keyDate:        entry.Date.Format(dateFormat),
 				keyProject:     project,
@@ -229,7 +231,7 @@ var HoursCmd = &cobra.Command{
 		}
 
 		// Render result
-		table := ui.NewTable(columns).WithStyle(tableStyle).WithRows(rows)
+		table := etable.NewTable(columns).WithStyle(tableStyle).WithRows(rows)
 		fmt.Println()
 		fmt.Println(table.Render())
 
@@ -247,7 +249,12 @@ var HoursCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			err = table.ExportCSV(abs)
+			fd, err := os.Create(abs)
+			if err != nil {
+				return err
+			}
+
+			err = table.ExportCSV(fd)
 			if err != nil {
 				ui.PrintlnfWarn("Could not export to CSV: %s", err.Error())
 			} else {
@@ -281,10 +288,10 @@ var HoursCmd = &cobra.Command{
 			}
 
 			// Define columns
-			columns := []ui.TableColumn{
-				ui.NewTableColumn(groupKey, groupTitle),
-				ui.NewTableColumn(keyEntries, "Entries").WithAlignment(ui.TableRight),
-				ui.NewTableColumn(keyHours, "Hours").WithAlignment(ui.TableRight),
+			columns := []etable.TableColumn{
+				etable.NewTableColumn(groupKey, groupTitle),
+				etable.NewTableColumn(keyEntries, "Entries").WithAlignment(etable.TableAlignmentRight),
+				etable.NewTableColumn(keyHours, "Hours").WithAlignment(etable.TableAlignmentRight),
 			}
 
 			// Add rows
@@ -304,9 +311,9 @@ var HoursCmd = &cobra.Command{
 				}
 			}
 
-			rows := make([]ui.TableRow, 0, len(groupingMap))
+			rows := make([]etable.TableRow, 0, len(groupingMap))
 			for groupValue, values := range groupingMap {
-				rows = append(rows, ui.TableRow{
+				rows = append(rows, etable.TableRow{
 					groupKey:   groupValue,
 					keyEntries: fmt.Sprintf("%d", values.Entries),
 					keyHours:   fmt.Sprintf("%.1f h", values.Hours),
@@ -315,7 +322,7 @@ var HoursCmd = &cobra.Command{
 
 			// Render result
 			fmt.Println()
-			table := ui.NewTable(columns).WithRows(rows)
+			table := etable.NewTable(columns).WithRows(rows)
 			fmt.Println(table.Render())
 		}
 

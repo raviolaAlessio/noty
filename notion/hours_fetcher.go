@@ -14,12 +14,12 @@ type HoursDateFilter interface {
 type HoursDateToday struct{}
 
 func (dateFilter HoursDateToday) ToFilter() notionapi.Filter {
-	now := notionapi.Date(time.Now().Round(24 * time.Hour))
+	day := notionapi.Date(time.Now().Round(24 * time.Hour))
 
 	return notionapi.PropertyFilter{
 		Property: "data",
 		Date: &notionapi.DateFilterCondition{
-			Equals: &now,
+			Equals: &day,
 		},
 	}
 }
@@ -27,12 +27,27 @@ func (dateFilter HoursDateToday) ToFilter() notionapi.Filter {
 type HoursDateYesterday struct{}
 
 func (dateFilter HoursDateYesterday) ToFilter() notionapi.Filter {
-	now := notionapi.Date(time.Now().Add(-24 * time.Hour).Round(24 * time.Hour))
+	day := notionapi.Date(time.Now().Add(-24 * time.Hour).Round(24 * time.Hour))
 
 	return notionapi.PropertyFilter{
 		Property: "data",
 		Date: &notionapi.DateFilterCondition{
-			Equals: &now,
+			Equals: &day,
+		},
+	}
+}
+
+type HoursDateExact struct {
+	Date time.Time
+}
+
+func (dateFilter HoursDateExact) ToFilter() notionapi.Filter {
+	day := notionapi.Date(dateFilter.Date.Round(24 * time.Hour))
+
+	return notionapi.PropertyFilter{
+		Property: "data",
+		Date: &notionapi.DateFilterCondition{
+			Equals: &day,
 		},
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/ravvio/easycli-ui/etable"
 	"github.com/ravvio/noty/config"
@@ -51,9 +52,10 @@ func init() {
 
 	// Date
 	HoursCmd.Flags().VarP(
-		flags.StringChoice(
+		flags.StringChoiceOrDate(
 			[]string{"all", "today", "yesterday"},
 			"all",
+			config.DateFormat(),
 		),
 		"date",
 		"d",
@@ -157,6 +159,14 @@ var HoursCmd = &cobra.Command{
 			filter.Date = notion.HoursDateToday{}
 		} else if date == "yesterday" {
 			filter.Date = notion.HoursDateYesterday{}
+		} else {
+			date, err := time.Parse(dateFormat, date)
+			if err != nil {
+				return err
+			}
+			filter.Date = notion.HoursDateExact{
+				Date: date,
+			}
 		}
 
 		// Create fetcher
@@ -265,7 +275,7 @@ var HoursCmd = &cobra.Command{
 		// Grouping
 		if grouping, err := cmd.Flags().GetString("group-by"); err != nil {
 			return err
-		} else {
+		} else if grouping != "" {
 			// Define grouping paramteres
 			var groupKey string
 			var groupTitle string

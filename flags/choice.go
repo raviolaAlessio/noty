@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // choiceValue implements the [pflag.Value] interface.
@@ -47,6 +48,28 @@ func StringChoice(choices []string, defaultValue string) *choiceValue[string] {
 				return nil
 			}
 			return fmt.Errorf("must be one of %v", choices)
+		},
+		convert:   func(s string) (string, error) { return s, nil },
+		toString:  func(s string) string { return s },
+		valueType: "string",
+	}
+}
+
+func StringChoiceOrDate(
+	choices []string,
+	defaultValue string,
+	layout string,
+) *choiceValue[string] {
+	return &choiceValue[string]{
+		value: defaultValue,
+		validate: func(s string) error {
+			if slices.Contains(choices, s) {
+				return nil
+			}
+			if _, err := time.Parse(layout, s); err != nil {
+				return nil
+			}
+			return fmt.Errorf("must be one of %v or date with layout %s", choices, layout)
 		},
 		convert:   func(s string) (string, error) { return s, nil },
 		toString:  func(s string) string { return s },

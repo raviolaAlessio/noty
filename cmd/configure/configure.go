@@ -2,6 +2,8 @@ package configure
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/ravvio/easycli-ui/espinner"
 	"github.com/ravvio/noty/config"
@@ -78,7 +80,7 @@ var ConfigCmd = &cobra.Command{
 		viper.Set(config.KeyHoursDatabaseID, hoursDatabaseID)
 
 		// Emotes
-		if !redo && !viper.IsSet(config.KeyUseEmotes) {
+		if redo || !viper.IsSet(config.KeyUseEmotes) {
 			useEmotes := config.UseEmotes()
 			if exit, err := ui.NewSelectInput(
 				"Do you want to use emotes (✅, 🔴, 🚀) in outputs?",
@@ -91,6 +93,46 @@ var ConfigCmd = &cobra.Command{
 				return err
 			}
 			viper.Set(config.KeyUseEmotes, useEmotes)
+		}
+
+		// Date format
+		if redo || !viper.IsSet(config.KeyDateFormat) {
+			dateFormat := config.DateFormat()
+			if exit, err := ui.NewSelectInput(
+				"Select your preferred date format",
+				[]ui.SelectItem[string]{
+					ui.NewSelectItem("2006-01-02 (Year-Month-Day)", "2006-01-02"),
+					ui.NewSelectItem("02/01/2006 (Day/Month/Year)", "02/01/2006"),
+				},
+				&dateFormat,
+			).Run(); err != nil || exit {
+				return err
+			}
+			viper.Set(config.KeyDateFormat, dateFormat)
+		}
+
+		// Time format
+		if redo || !viper.IsSet(config.KeyDatetimeFormat) {
+			dateFormat := config.DateFormat()
+			datetimeFormatSplit := strings.Split(config.DatetimeFormat(), " ")
+			var timeFormat string
+			if len(datetimeFormatSplit) < 2 {
+				timeFormat = ""
+			} else {
+				timeFormat = datetimeFormatSplit[1]
+			}
+
+			if exit, err := ui.NewSelectInput(
+				"Select your preferred time format",
+				[]ui.SelectItem[string]{
+					ui.NewSelectItem("15:04", "15:04"),
+					ui.NewSelectItem("03:04 PM", "3:4 PM"),
+				},
+				&timeFormat,
+			).Run(); err != nil || exit {
+				return err
+			}
+			viper.Set(config.KeyDatetimeFormat, fmt.Sprintf("%s %s", dateFormat, timeFormat))
 		}
 
 		// Fetch all users

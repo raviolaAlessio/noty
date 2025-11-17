@@ -245,7 +245,7 @@ var HoursCmd = &cobra.Command{
 		fmt.Println()
 		fmt.Println(table.Render())
 
-		resultLog := fmt.Sprintf("\nFetched %d tasks", len(rows))
+		resultLog := fmt.Sprintf("\nFetched %d entries", len(rows))
 		if hoursFetcher.HasMore() {
 			resultLog += ", has more"
 		}

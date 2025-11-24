@@ -395,7 +395,7 @@ var TaskCmd = &cobra.Command{
 		// Grouping
 		if grouping, err := cmd.Flags().GetString("group-by"); err != nil {
 			return err
-		} else {
+		} else if grouping != "" {
 			// Define grouping paramteres
 			var groupKey string
 			var groupTitle string

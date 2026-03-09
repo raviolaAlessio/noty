@@ -2,6 +2,7 @@ package notion
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
@@ -128,5 +129,9 @@ func (f *Fetcher[C, T]) NextOne() (*T, error) {
 	f.first_page = false
 	f.fetched += int(len(res.Data))
 	f.next_token = res.NextToken
+
+	if len(res.Data) == 0 {
+		return nil, errors.New("no data")
+	}
 	return &res.Data[0], nil
 }

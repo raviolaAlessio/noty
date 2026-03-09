@@ -451,9 +451,10 @@ var TaskCmd = &cobra.Command{
 			}
 
 			// Render result
-			table := etable.NewTable(columns).WithStyle(tableStyle).WithRows(rows)
 			fmt.Println()
-			fmt.Println(table.Render())
+			fmt.Println(
+				etable.NewTable(columns).WithStyle(tableStyle).WithRows(rows).Render(),
+			)
 		}
 
 		return nil

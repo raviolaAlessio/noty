@@ -30,7 +30,7 @@ require (
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
-	github.com/ravvio/easycli-ui v0.0.0-20251114170239-b01facdb77c1
+	github.com/ravvio/easycli-ui v0.0.0-20251218092255-c581ad95023a
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/sagikazarmark/locafero v0.7.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect

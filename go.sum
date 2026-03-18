@@ -60,8 +60,8 @@ github.com/pelletier/go-toml/v2 v2.2.3 h1:YmeHyLY8mFWbdkNWwpr+qIL2bEqT0o95WSdkNH
 github.com/pelletier/go-toml/v2 v2.2.3/go.mod h1:MfCQTFTvCcUyyvvwm1+G6H/jORL20Xlb6rzQu9GuUkc=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/ravvio/easycli-ui v0.0.0-20251218092255-c581ad95023a h1:zAGGqMNK885bWcts0kn83DKyDSUhG6uGwxBuU1Ca5t8=
-github.com/ravvio/easycli-ui v0.0.0-20251218092255-c581ad95023a/go.mod h1:7FsXnx7uzS4Cbuhz9PmP/ejh/7amFOplHq2my6KKfWE=
+github.com/ravvio/easycli-ui v0.1.0 h1:o3SwiyBcSc5ZqnRR/ckH1ZbOBlkHpm/bXvTJmlWFYvI=
+github.com/ravvio/easycli-ui v0.1.0/go.mod h1:7FsXnx7uzS4Cbuhz9PmP/ejh/7amFOplHq2my6KKfWE=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.7 h1:WUdvkW8uEhrYfLC4ZzdpI2ztxP1I582+49Oc5Mq64VQ=
 github.com/rivo/uniseg v0.4.7/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=

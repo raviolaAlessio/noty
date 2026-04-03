@@ -153,7 +153,7 @@ var ConfigCmd = &cobra.Command{
 		}
 
 		// Fetch all projects
-		espinner.NewSpinner(
+		s = espinner.NewSpinner(
 			"Loading projects",
 			func() error {
 				fetcherProjects := client.NewProjectFetcher(ctx, config.ProjectsDatabaseID())
